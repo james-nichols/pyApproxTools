@@ -14,8 +14,8 @@ This submodule defines a variety of greedy algorithms, using the basis class
 import numpy as np
 import copy
 
-from pyFuncAnalysis.vector import *
-from pyFuncAnalysis.basis import *
+from pyApproxTools.vector import *
+from pyApproxTools.basis import *
 
 __all__ = ['CollectiveOMP', 'WorstCaseOMP', 'WorstVecOMP']
 

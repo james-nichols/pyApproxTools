@@ -13,7 +13,7 @@ import math
 import numpy as np
 import scipy as sp
 
-from pyFuncAnalysis.vector import *
+from pyApproxTools.vector import *
 
 import pdb
 
@@ -270,6 +270,26 @@ class BasisPair(object):
                 self.CG[self.m-1, i] = self.Vn.vecs[i].dot(w)
 
         self.U = self.V = self.S = None
+
+    def subspace(self, Wm_indices=None, Vn_indices=None):
+        if Wm_indices is None:
+            Wm_indices = slice(0, self.m)
+        if Vn_indices is None:
+            Vn_indices = slice(0, self.n)
+        sub = type(self)(self.Wm.subspace(Wm_indices), self.Vn.subspace(Vn_indices), CG=self.CG[Wm_indices, Vn_indices])        
+        return sub
+
+    def subspace_mask(self, Wm_mask=None, Vn_mask=None):
+        if Wm_mask is None:
+            Wm_mask = np.ones(self.m, dtype=np.bool)
+        if Vn_mask is None:
+            Vn_mask = np.ones(self.n, dtype=np.bool)
+        
+        if Wm_mask.shape[0] != self.m and Vn_mask.shape[0] != self.n:
+            raise Exception('Subspace mask must be the same size as length of vectors')
+
+        sub = type(self)(self.Wm.subspace(mask), self.Vn.subspace(mask), CG=self.CG[Wm_mask, Vn_mask])
+        return sub
 
     def beta(self):
         if self.U is None or self.S is None or self.V is None:
