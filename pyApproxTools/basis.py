@@ -222,8 +222,6 @@ class BasisPair(object):
 
     def __init__(self, Wm, Vn, CG=None):
 
-        if Vn.n > Wm.n:
-            raise Exception('Error - Wm must be of higher dimensionality than Vn')
         if Vn.space != Wm.space:
             raise Exception('Error - Wm and Vn must be in the same space')
 
@@ -323,6 +321,8 @@ class BasisPair(object):
 
     def optimal_reconstruction(self, w, disp_cond=False):
         """ And here it is - the optimal reconstruction """
+        if Vn.n > Wm.n:
+            raise Exception('Error - Wm must be of higher dimensionality than Vn to be able to do optimal reconstruction')
         try:
             c = scipy.linalg.solve(self.CG.T @ self.CG, self.CG.T @ w, sym_pos=True)
         except np.linalg.LinAlgError as e:

@@ -12,7 +12,7 @@ import numpy as np
 from pyApproxTools.vector import *
 from pyApproxTools.basis import *
 
-__all__ = ['make_sin_basis', 'make_random_delta_basis', 'make_random_avg_basis', 'make_unif_avg_overlap_basis', 'make_unif_dictionary', 'make_rand_dictionary']
+__all__ = ['make_sin_basis', 'make_random_delta_basis', 'make_random_avg_basis', 'make_unif_avg_basis', 'make_unif_dictionary', 'make_rand_dictionary', 'make_unif_avg_dictionary']
 
 def make_sin_basis(n):
     V_n = []
@@ -80,9 +80,9 @@ def make_random_avg_basis(n, epsilon=1.0e-2, bounds=None, bound_prop=1.0):
     
     return Basis(vecs)
 
-def make_unif_avg_overlap_basis(m, epsilon):
+def make_unif_avg_basis(m, epsilon):
 
-    return Basis(make_unif_avg_overlap_dictionary(m, epsilon))
+    return Basis(make_unif_avg_dictionary(m, epsilon))
 
 def make_unif_dictionary(N):
 
@@ -94,19 +94,10 @@ def make_unif_dictionary(N):
 
     return dic
 
-def make_unif_avg_overlap_dictionary(N, epsilon):
+def make_unif_avg_dictionary(N, epsilon):
 
     points = np.linspace(0.5 * epsilon, 1.0 - 0.5 * epsilon, N, endpoint=True)
     #points = points + 0.5 * step # Make midpoints... don't want 0.0 or 1.0
-
-    dic = [FuncVector(params=[[(p-0.5*epsilon, p+0.5*epsilon)]],coeffs=[[1.0]],funcs=['H1UIAvg']) for p in points]
-
-    return dic
-
-def make_unif_avg_dictionary(N):
-
-    epsilon = 1.0 / N
-    points = np.linspace(0.5 * epsilon, 1.0 - 0.5 * epsilon, N, endpoint=True)
 
     dic = [FuncVector(params=[[(p-0.5*epsilon, p+0.5*epsilon)]],coeffs=[[1.0]],funcs=['H1UIAvg']) for p in points]
 
