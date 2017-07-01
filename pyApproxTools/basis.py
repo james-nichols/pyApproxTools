@@ -12,7 +12,8 @@ class "Vector", which has to have a dot product defined as well as typical linea
 import math
 import numpy as np
 import scipy as sp
-
+import scipy.sparse 
+import scipy.linalg 
 from pyApproxTools.vector import *
 
 import pdb
@@ -43,9 +44,10 @@ class Basis(object):
 
         self.orthonormal_basis = None
         self.G = None
+        self.L_inv = None
         self.U = self.S = self.V = None
 
-    def add_vector(self, vec):
+    def add_vector(self, vec, incr_ortho=False):
         """ Add just one vector, so as to make the new Grammian calculation quick """
 
         self.vecs.append(vec)
@@ -56,6 +58,26 @@ class Basis(object):
             for i in range(self.n):
                 self.G[self.n-1, i] = self.G[i, self.n-1] = self.vecs[-1].dot(self.vecs[i])
 
+
+            # This is for performance's sake, if we only add one vec then we can also
+            # increment the othogonal system associated
+            if incr_ortho and self.L_inv is not None and self.orthonormal_basis is not None:
+                
+                l_next = self.L_inv.T @ self.G[:-1,-1]
+                l_corn = np.sqrt(1.0 - np.linalg.norm(l_next)**2)
+
+                l_inv_next = -self.L_inv.T @ self.G[:-1,-1] @ self.L_inv.T / l_corn
+                
+                self.L_inv = np.pad(self.L_inv, ((0,1),(0,1)), 'constant')
+                self.L_inv[:-1,-1] = l_inv_next.T
+                self.L_inv[-1,-1] = 1.0 / l_corn
+
+                self.orthonormal_basis.add_vector(self.reconstruct(self.L_inv[:,-1]))
+            else:
+                # The new basis means the previous basis is now 
+                self.orthonormal_basis = None
+
+        # Unfortunately there's no incremental SVD solution that I know of...
         self.U = self.V = self.S = None
 
     def subspace(self, indices):
@@ -113,16 +135,16 @@ class Basis(object):
 
             u_n = self.dot(u)
             try:
-                if sp.sparse.issparse(self.G):
-                    y_n = sp.sparse.linalg.spsolve(self.G, u_n)
+                if scipy.sparse.issparse(self.G):
+                    y_n = scipy.sparse.linalg.spsolve(self.G, u_n)
                 else:
-                    y_n = sp.linalg.solve(self.G, u_n, sym_pos=True)
+                    y_n = scipy.linalg.solve(self.G, u_n, sym_pos=True)
             except np.linalg.LinAlgError as e:
                 print('Warning - basis is linearly dependent with {0} vectors, projecting using SVD'.format(self.n))
 
                 if self.U is None:
-                    if sp.sparse.issparse(self.G):
-                        self.U, self.S, self.V =  sp.sparse.linalg.svds(self.G)
+                    if scipy.sparse.issparse(self.G):
+                        self.U, self.S, self.V =  scipy.sparse.linalg.svds(self.G)
                     else:
                         self.U, self.S, self.V = np.linalg.svd(self.G)
                 # This is the projection on the reduced rank basis 
@@ -175,25 +197,25 @@ class Basis(object):
         return type(self)(vecs, space=self.space)
 
     def orthonormalise(self):
-
-        if self.G is None:
-            self.make_grammian()
-        
-        # We do a cholesky factorisation rather than a Gram Schmidt, as
-        # we have a symmetric +ve definite matrix, so this is a cheap and
-        # easy way to get an orthonormal basis from our previous basis
-        
-        if sp.sparse.issparse(self.G):
-            L = sp.sparse.cholmod.cholesky(self.G)
-        else:
-            L = np.linalg.cholesky(self.G)
-        L_inv = sp.linalg.lapack.dtrtri(L.T)[0]
-         
-        ortho_vecs = []
-        for i in range(self.n):
-            ortho_vecs.append(self.reconstruct(L_inv[:,i]))
-                    
-        self.orthonormal_basis = OrthonormalBasis(ortho_vecs, space=self.space)
+    
+        if self.orthonormal_basis is None or self.orthonormal_basis.n != self.n:
+            if self.G is None:
+                self.make_grammian()
+           
+            # We do a cholesky factorisation rather than a Gram Schmidt, as
+            # we have a symmetric +ve definite matrix, so this is a cheap and
+            # easy way to get an orthonormal basis from our previous basis
+            if scipy.sparse.issparse(self.G):
+                L = scipy.sparse.cholmod.cholesky(self.G)
+            else:
+                L = np.linalg.cholesky(self.G)
+            self.L_inv = scipy.linalg.lapack.dtrtri(L.T)[0]
+             
+            ortho_vecs = []
+            for i in range(self.n):
+                ortho_vecs.append(self.reconstruct(self.L_inv[:,i]))
+                  
+            self.orthonormal_basis = OrthonormalBasis(ortho_vecs, space=self.space)
 
         return self.orthonormal_basis
 
@@ -205,7 +227,7 @@ class OrthonormalBasis(Basis):
 
         super().__init__(vecs=vecs, space=space)
         #self.G = np.eye(self.n)
-        #self.G = sp.sparse.identity(self.n)
+        #self.G = scipy.sparse.identity(self.n)
 
     def project(self, u):
         # Now that the system is orthonormal, we don't need to solve a linear system
@@ -215,6 +237,20 @@ class OrthonormalBasis(Basis):
     def orthonormalise(self):
         return self
 
+    def add_vector(self, vec, incr_ortho=False, check_ortho=True):
+        """ If this is an ortho-basis, we """
+        if check_ortho and abs(vec.norm() - 1) < 1e-14:
+            vec /= vec.norm()
+        if check_ortho and any([abs(v.dot(vec)) > 1e-12 for v in self.vecs]):
+            print('Error: tried to add a non-orthogonal vector to an orthonormal system')
+        else:
+            self.vecs.append(vec)
+            self.n += 1
+            
+        if self.G is not None:
+            self.G = np.eye(self.n)
+        
+        self.U = self.V = self.S = None
 
 class BasisPair(object):
     """ This class automatically sets up the cross grammian, calculates
@@ -298,6 +334,22 @@ class BasisPair(object):
     def calc_svd(self):
         if self.U is None or self.S is None or self.V is None:
             self.U, self.S, self.V = np.linalg.svd(self.CG)
+
+    def Wm_singular_vec(self, index):
+        if not isinstance(self.Wm, OrthonormalBasis) or not isinstance(self.Vn, OrthonormalBasis):
+            raise Exception('Both Wm and Vn must be orthonormal to calculate the largest singular vec!')
+        if self.U is None or self.S is None or self.V is None:
+            self.calc_svd()
+
+        return self.Wm.reconstruct(self.U[:, index])
+
+    def Vn_singular_vec(self, index):
+        if not isinstance(self.Wm, OrthonormalBasis) or not isinstance(self.Vn, OrthonormalBasis):
+            raise Exception('Both Wm and Vn must be orthonormal to calculate the largest singular vec!')
+        if self.U is None or self.S is None or self.V is None:
+            self.calc_svd()
+
+        return self.Vn.reconstruct(self.V[index, :])
 
     def make_favorable_basis(self):
         if isinstance(self, FavorableBasisPair):
