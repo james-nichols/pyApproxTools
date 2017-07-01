@@ -13,6 +13,8 @@ This submodule defines a variety of greedy algorithms, using the basis class
 
 import numpy as np
 import copy
+import time
+import pdb
 
 from pyApproxTools.vector import *
 from pyApproxTools.basis import *
@@ -39,12 +41,12 @@ class CollectiveOMP(object):
     def initial_choice(self):
         """ Different greedy methods will have their own maximising/minimising criteria, so all 
         inheritors of this class are expected to overwrite this method to suit their needs. """
-    
+       
         norms = np.zeros(len(self.dictionary))
         for i in range(len(self.dictionary)):
             for phi in self.Vn.vecs:
                 norms[i] += phi.dot(self.dictionary[i]) ** 2
-
+        
         n0 = np.argmax(norms)
 
         return n0, norms[n0]
@@ -52,9 +54,7 @@ class CollectiveOMP(object):
     def next_step_choice(self, i):
         """ Different greedy methods will have their own maximising/minimising criteria, so all 
         inheritors of this class are expected to overwrite this method to suit their needs. """
-
-        proj_t = 0.0
-        dot_t = 0.0
+       
         next_crit = np.zeros(len(self.dictionary))
         # We go through the dictionary and find the max of || f ||^2 - || P_Vn f ||^2
         for phi in self.Vn.vecs:
@@ -62,9 +62,9 @@ class CollectiveOMP(object):
             for j in range(len(self.dictionary)):
                 next_crit[j] += phi_perp.dot(self.dictionary[j]) ** 2
                 #p_V_d[i] = self.greedy_basis.project(self.dictionary[i]).norm()
-        
-        ni = np.argmax(next_crit)
 
+        ni = np.argmax(next_crit)
+        
         if self.verbose:
             print('{0} : \t {1}'.format(i, next_crit[ni]))
 
@@ -75,7 +75,7 @@ class CollectiveOMP(object):
         
         if self.greedy_basis is None:
             n0, self.sel_crit[0] = self.initial_choice()
-            
+             
             self.greedy_basis = Basis([self.dictionary[n0]])
             self.greedy_basis.make_grammian()
  
@@ -90,7 +90,7 @@ class CollectiveOMP(object):
                 
                 ni, self.sel_crit[i] = self.next_step_choice(i)
                    
-                self.greedy_basis.add_vector(self.dictionary[ni])
+                self.greedy_basis.add_vector(self.dictionary[ni], incr_ortho=True)
  
                 if self.remove:
                     del self.dictionary[ni]
@@ -112,9 +112,7 @@ class WorstCaseOMP(CollectiveOMP):
         super().__init__(m, dictionary, Vn, verbose, remove)
             
         self.dictionary = copy.copy(dictionary)
-
         self.BP = None
-
         self.Vtilde = []
 
     def initial_choice(self):
@@ -140,17 +138,14 @@ class WorstCaseOMP(CollectiveOMP):
         next_crit = np.zeros(len(self.dictionary))
         # We go through the dictionary and find the max of || f ||^2 - || P_Vn f ||^2
         BP = BasisPair(self.greedy_basis.orthonormalise(), self.Vn)
-        FB = BP.make_favorable_basis()
+          
+        v = BP.Vn_singular_vec(-1)
         
-        # This corresponds with vector with the smallest singular value from the SVD
-        v = FB.Vn.vecs[-1]
-
         v_perp = v - self.greedy_basis.project(v)
         for j in range(len(self.dictionary)):
             next_crit[j] = abs(v_perp.dot(self.dictionary[j]))
         
         ni = np.argmax(next_crit)
-
         self.Vtilde.append(v)
 
         if self.verbose:
