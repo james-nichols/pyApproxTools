@@ -36,9 +36,8 @@ class Basis(object):
 
     def __init__(self, vecs=None, space='H1'):
         
-        self.vecs = vecs
-        if vecs is not None:
-            self.n = len(vecs)
+        self.vecs = vecs or []
+        self.n = len(vecs or [])
         
         self.space = space
 
@@ -226,7 +225,7 @@ class OrthonormalBasis(Basis):
         # fact orthonormal, and don't do any testing...
 
         super().__init__(vecs=vecs, space=space)
-        #self.G = np.eye(self.n)
+        self.G = np.eye(self.n)
         #self.G = scipy.sparse.identity(self.n)
 
     def project(self, u):
