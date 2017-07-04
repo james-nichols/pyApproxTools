@@ -11,6 +11,7 @@ import math
 import numpy as np
 import scipy.linalg
 import scipy.sparse
+from itertools import *
 import copy
 
 import seaborn as sns
@@ -85,11 +86,11 @@ def make_pw_hat_basis(div):
         for l in range(side_n):
             v = PWLinearSqDyadicH1(div=div)
             v.values[k+1, l+1] = 1.0
-            Vn.append(v_i)
+            Vn.append(v)
     
     b = PWBasis(Vn)
 
-    h = 2 ** (- b.vecs[0].div)
+    h = 2 ** (-b.vecs[0].div)
     # We construct the Grammian here explicitly, otherwise it takes *forever*
     # as the grammian is often used in Reisz representer calculations
     grammian = np.zeros([side_n*side_n, side_n*side_n])
@@ -105,7 +106,7 @@ def make_pw_hat_basis(div):
     
     grammian = scipy.sparse.diags([diag, lr_diag, lr_diag, ud_diag, ud_diag], [0, -1, 1, -side_n, side_n]).tocsr()
     b.G = grammian
-     
+    
     return b
 
 def make_pw_sin_basis(div, N=None, space='H1'):
@@ -184,9 +185,8 @@ def make_pw_random_local_integration_basis(m, div, width=2, bounds=None, bound_p
     stencil[0,-1]=stencil[-1,0]=h*h
     
     if space == 'H1':
-        hat_b = make_hat_basis(div=div, space='H1')
+        hat_b = make_pw_hat_basis(div=div)
         hat_b.make_grammian()
-    
     for i in range(m):
         point = points[i]
 
@@ -229,7 +229,7 @@ def make_local_integration_basis(div, int_div, space='H1'):
     stencil[0,-1]=stencil[-1,0]=h*h
    
     if space == 'H1':
-        hat_b = make_hat_basis(div=div, space='H1')
+        hat_b = make_pw_hat_basis(div=div, space='H1')
         hat_b.make_grammian()
 
     for i in range(side_m):

@@ -73,32 +73,29 @@ class CollectiveOMP(object):
     def construct_basis(self):
         " The construction method should be generic enough to support all variants of the greedy algorithms """
         
-        if self.Wm is None:
-            n0, self.sel_crit[0] = self.initial_choice()
-             
-            self.Wm = Basis([self.dictionary[n0]])
-            self.Wm.make_grammian()
- 
+        n0, self.sel_crit[0] = self.initial_choice()
+         
+        self.Wm = Basis([self.dictionary[n0]])
+        self.Wm.make_grammian()
+
+        if self.remove:
+            del self.dictionary[n0]
+
+        if self.verbose:
+            print('\n\nGenerating basis from greedy algorithm with dictionary: ')
+            print('i \t || P_Vn (w - P_Wm w) ||')
+
+        for i in range(1, self.m):
+            
+            ni, self.sel_crit[i] = self.next_step_choice(i)
+               
+            self.Wm.add_vector(self.dictionary[ni], incr_ortho=True)
+
             if self.remove:
-                del self.dictionary[n0]
-
-            if self.verbose:
-                print('\n\nGenerating basis from greedy algorithm with dictionary: ')
-                print('i \t || P_Vn (w - P_Wm w) ||')
-
-            for i in range(1, self.m):
-                
-                ni, self.sel_crit[i] = self.next_step_choice(i)
+                del self.dictionary[ni]
                    
-                self.Wm.add_vector(self.dictionary[ni], incr_ortho=True)
- 
-                if self.remove:
-                    del self.dictionary[ni]
-                       
-            if self.verbose:
-                print('\n\nDone!')
-        else:
-            print('Greedy basis already computed!')
+        if self.verbose:
+            print('\n\nDone!')
         
         return self.Wm
 
