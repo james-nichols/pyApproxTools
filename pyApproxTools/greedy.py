@@ -54,7 +54,7 @@ class CollectiveOMP(object):
     def next_step_choice(self, i):
         """ Different greedy methods will have their own maximising/minimising criteria, so all 
         inheritors of this class are expected to overwrite this method to suit their needs. """
-       
+        
         next_crit = np.zeros(len(self.dictionary))
         # We go through the dictionary and find the max of || f ||^2 - || P_Vn f ||^2
         for phi in self.Vn.vecs:
@@ -74,8 +74,7 @@ class CollectiveOMP(object):
         " The construction method should be generic enough to support all variants of the greedy algorithms """
         
         n0, self.sel_crit[0] = self.initial_choice()
-         
-        self.Wm = Basis([self.dictionary[n0]])
+        self.Wm.add_vector(self.dictionary[n0]) 
         self.Wm.make_grammian()
 
         if self.remove:
@@ -118,8 +117,8 @@ class WorstCaseOMP(CollectiveOMP):
         v0 = self.Vn.vecs[0]
 
         dots = np.zeros(len(self.dictionary))
-        for i in range(len(self.dictionary)):
-            dots[i] = v0.dot(self.dictionary[i])
+        for i, d in enumerate(self.dictionary):
+            dots[i] = v0.dot(d)
 
         n0 = np.argmax(dots)
       
@@ -134,7 +133,7 @@ class WorstCaseOMP(CollectiveOMP):
         next_crit = np.zeros(len(self.dictionary))
         # We go through the dictionary and find the max of || f ||^2 - || P_Vn f ||^2
         BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
-          
+        
         v = BP.Vn_singular_vec(-1)
         
         v_perp = v - self.Wm.project(v)
