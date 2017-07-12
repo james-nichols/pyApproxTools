@@ -293,41 +293,6 @@ class H1UIAvg(H1UIElement):
 
         return (lc * ln * rc * rn * dot).sum()
         
-
-    def _avg_dot_slow(self, right, left_params, right_params):
-        # Oooh this one's a bit tricky eh
-        
-        # Lets implement a loop version first. 
-        ab = left_params.keys_array()
-        lc = left_params.values_array()
-        cd = right_params.keys_array()
-        rc = right_params.values_array()
-        
-        if any(ab[:,0] > ab[:,1]) or any(cd[:,0] > cd[:,1]):
-            raise Exception('Some local-average intervals are in reverse, a > b')
-
-        dot = 0.0
-        # Note: might have to .T The arrays... depending
-        for a, b in zip(*ab.T):
-            for c, d in zip(*cd.T):
-                
-                # There are exactly 6 possible cases
-                if b <= c:
-                    dot += self._disj(a, b, c, d) * (self._nt(a, b) * self._nt(c, d))
-                elif a < c and c <= b and b <= d:
-                    dot += self._intr(a, b, c, d) * (self._nt(a, b) * self._nt(c, d))
-                elif a <= c and d <= b:
-                    dot += self._cont(a, b, c, d) * (self._nt(a, b) * self._nt(c, d))
-                elif c <= a and b <= d:
-                    dot += self._cont(c, d, a, b) * (self._nt(a, b) * self._nt(c, d))
-                elif c < a and a <= d and d <= b:
-                    dot += self._intr(c, d, a, b) * (self._nt(a, b) * self._nt(c, d))
-                elif c <= d and d < a:
-                    dot += self._disj(c, d, a, b) * (self._nt(a, b) * self._nt(c, d))
-                else:
-                    raise Exception('Uh oh, something went wrong')
-        return dot
-   
     # These internal functions represent the different cases for when the local avg is dotted against itself
     def _disj(self, a, b, c, d):
         return (1.0 - 0.5 * (c + d)) * 0.5 * (a + b)
