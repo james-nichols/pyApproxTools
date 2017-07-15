@@ -184,12 +184,12 @@ class H1UISin(H1UIElement):
         lp = left_params.keys_array()
         rp = left_params.keys_array()
 
-        if isinstance(right, H1UIDelta):
+        if isinstance(right, type(self)):
+            return (lc[:,np.newaxis] * rc * np.equal.outer(lp, rp)).sum()
+        elif isinstance(right, H1UIDelta):
             return self._delta_dot(right, left_params, right_params)
         elif isinstance(right, H1UIAvg):
             return self._avg_dot(right, left_params, right_params)
-        elif isinstance(right, H1UISin):
-            return (lc[:,np.newaxis] * rc * np.equal.outer(lp, rp)).sum()
         #elif isinstance(right, (H1UIAvg, H1UIPoly)):
         return 0.0 # TO BE IMPLEMENTED
 
@@ -261,16 +261,16 @@ class H1UIAvg(H1UIElement):
         return c * self._normaliser(params.keys_array()) * (low * l + m * mid + h * hi)
         
     def dot(self, right, left_params, right_params):
-        if isinstance(right, H1UIDelta):
+        if isinstance(right, type(self)):
+            return self._self_dot(right, left_params, right_params)
+        elif isinstance(right, H1UIDelta):
             return self._delta_dot(right, left_params, right_params)
-        elif isinstance(right, H1UIAvg):
-            return self._avg_dot(right, left_params, right_params)
         elif isinstance(right, (H1UISin, H1UIPoly)):
             return right.dot(self, right_params, left_params)
         return 0.0
        
     
-    def _avg_dot(self, right, left_params, right_params):
+    def _self_dot(self, right, left_params, right_params):
         a = left_params.keys_array()[:,0][:,np.newaxis]
         b = left_params.keys_array()[:,1][:,np.newaxis]
         lc = left_params.values_array()[:,np.newaxis]
@@ -308,6 +308,59 @@ class H1UIAvg(H1UIElement):
 
     def _nt(self, a, b):
         return 1.0 / np.sqrt(a + (b - a)/3.0 - 0.25 * (a + b) * (a + b))
+
+class H1UIAffine(H1UIElement):
+
+    def evaluate(self, params, x):
+        
+        a = params.keys_array()[:,0]
+        m = params.keys_array()[:,1]
+        c = params.values_array()
+
+        hi = x[:,np.newaxis] > a #np.less.outer(x, a)
+
+        return c * self._normaliser(params.keys_array()) * (x[:,np.newaxis] * (1.0 - a)**3 - hi * (x[:,np.newaxis] - a)**3)
+        
+    def dot(self, right, left_params, right_params):
+        if isinstance(right, type(self):
+            return self._self_dot(right, left_params, right_params)
+        elif isinstance(right, H1UIDelta):
+            return self._delta_dot(right, left_params, right_params)
+        elif isinstance(right, H1UIAvg):
+            return self._avg_dot(right, left_params, right_params)
+        elif isinstance(right, (H1UISin, H1UIPoly)):
+            return right.dot(self, right_params, left_params)
+        return 0.0
+    
+    def _self_dot(self, right, left_params, right_params):
+        # The algorithm is ordered, so we must order it
+       
+        a = left_params.keys_array()[:,0][:,np.newaxis]
+        m = left_params.keys_array()[:,1][:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = self._normaliser(left_params.keys_array())[:,np.newaxis]
+
+        b = right_params.keys_array()[:,0]
+        n = right_params.keys_array()[:,1]
+        rc = right_params.values_array()
+        rn = right._normaliser(right_params.keys_array())
+
+        order = (a <= b)
+
+        result = lc * ln * rc * rn (order * self._aff_ordered_dot(a, m, b, n) + ~order * self._aff_ordered_dot(b, n, a, m))
+
+        return result.sum()
+
+    def _aff_ordered_dot(self, a, m, b, n):
+        # This routine assumes a <= b. Also assumes that, if a and b are vectors, that a is a row vector, i.e.
+        # that we have done the a[:, np.newaxis] step
+        return 0.25 * m * n * (0.20 * (1-b**5) - 0.5 * (a + b) * (1 - b**4) + 0.5 * (a*a + b*b) * (1-b**3) \
+                         - a * b * (a + b) * (1 - b*b) + a * a * b * b * (1 - b) - (1 - a**3) * (1 - b**3))
+
+    def _normaliser(self, p):
+        # p is assumed to be an array of size n*2
+        return 1.0 / np.sqrt(self._aff_dot(self, p, p))
+
 
 class H1UIPoly(H1UIElement):
     pass
