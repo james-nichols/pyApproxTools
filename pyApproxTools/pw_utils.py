@@ -93,7 +93,6 @@ def make_pw_hat_basis(div):
     h = 2 ** (-b.vecs[0].div)
     # We construct the Grammian here explicitly, otherwise it takes *forever*
     # as the grammian is often used in Reisz representer calculations
-    grammian = np.zeros([side_n*side_n, side_n*side_n])
     diag = (4.0 + h*h/2.0) * np.ones(side_n*side_n)
     lr_diag = (h*h/12.0 - 1) * np.ones(side_n*side_n)
 

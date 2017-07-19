@@ -166,7 +166,8 @@ class Basis(object):
          
         u_p = type(self.vecs[0])()
         for i, c_i in enumerate(c):
-            u_p += c_i * self.vecs[i] 
+            if c_i != 0:
+                u_p += c_i * self.vecs[i] 
         return u_p
 
     def matrix_multiply(self, M):

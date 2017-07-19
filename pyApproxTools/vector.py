@@ -21,15 +21,11 @@ v1 = [  1.4 * sin(2 * pi * x) +
      ]
 v2 = [  0.1 * sin(2 * pi * x) +
         1.0 * sin(10 * pi * x) +
-        2.3 * sin(12 * pi * x)
-        1.3 * sin(16 * pi * x)
      ]
 then the result of 
 v1 + v2 = [ 1.5 * sin(2 * pi * x) +
             3.0 * sin(4 * pi * x) +
             2.0 * sin(10 * pi * x) +
-            2.3 * sin(12 * pi * x) +
-            1.3 * sin(16 * pi * x)
           ]
 
 This operation is done by having a dictionary of "elements" which contain the simple dot-product
@@ -322,7 +318,7 @@ class H1UIAffine(H1UIElement):
         return c * self._normaliser(params.keys_array()) * (x[:,np.newaxis] * (1.0 - a)**3 - hi * (x[:,np.newaxis] - a)**3)
         
     def dot(self, right, left_params, right_params):
-        if isinstance(right, type(self):
+        if isinstance(right, type(self)):
             return self._self_dot(right, left_params, right_params)
         elif isinstance(right, H1UIDelta):
             return self._delta_dot(right, left_params, right_params)
