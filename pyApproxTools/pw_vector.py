@@ -35,7 +35,8 @@ class PWSqDyadic(Vector):
         # Do we really put these properties here? Hmm.
         self.d = 2
         self.domain = ((0,1),(0,1))
-        self.space = None 
+        self.space = None
+        self.div = div
 
         if div is not None:
             self.div = div
