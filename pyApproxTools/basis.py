@@ -18,7 +18,7 @@ from pyApproxTools.vector import *
 
 import pdb
 
-__all__ = ['Basis', 'OrthonormalBasis', 'BasisPair', 'FavorableBasisPair']
+__all__ = ['Basis', 'BasisPair', 'FavorableBasisPair']
 
 class Basis(object):
     """ Class representing the mathematical concept of a Basis. Routines available
@@ -34,54 +34,71 @@ class Basis(object):
     orthonormalise()
     """
 
-    def __init__(self, vecs=None, space='H1'):
+    def __init__(self, vecs=None, space='H1', is_orthonormal=False):
         
         self.vecs = vecs or []
         self.n = len(vecs or [])
         
         self.space = space
 
-        self.orthonormal_basis = None
-        self.G = None
+        self.is_orthonormal = is_orthonormal
+        if is_orthonormal:
+            self.orthonormal_basis = self
+            self.G = np.eye(self.n)
+        else:
+            self.orthonormal_basis = None
+            self.G = None
+        
         self.L_inv = None
         self.U = self.S = self.V = None
 
-    def add_vector(self, vec, incr_ortho=False):
+    def add_vector(self, vec, incr_ortho=True, check_ortho=True):
         """ Add just one vector, so as to make the new Grammian calculation quick """
 
-        self.vecs.append(vec)
-        self.n += 1
+        if self.is_orthonormal:    
+            """ add a vector - if it is orthonormal already just add it, other wise do one gram-schmidt step """
+            v_dot = np.zeros(self.n)
+            if check_ortho:
+                for i, v in enumerate(self.vecs):
+                    v_dot[i] = v.dot(vec)
 
-        if self.G is not None:
-            self.G = np.pad(self.G, ((0,1),(0,1)), 'constant')
-            for i in range(self.n):
-                self.G[self.n-1, i] = self.G[i, self.n-1] = self.vecs[-1].dot(self.vecs[i])
+            if any(np.abs(v_dot) > 1e-13):
+                # We do a Gram-Schmidt style removal
+                for i, v in enumerate(self.vecs):
+                    vec -= v_dot[i] * v
+                n = vec.norm()
+                if n < 1e-13:
+                    raise Exception('Error - tried adding linearly dependent vector to ortho basis')
+                vec /= n
 
+            self.vecs.append(vec)
+            self.n += 1
+   
+            if self.G is not None:
+                self.G = np.eye(self.n)
+        else:
+            self.vecs.append(vec)
+            self.n += 1
 
-            # This is for performance's sake, if we only add one vec then we can also
-            # increment the othogonal system associated
-            if incr_ortho and self.L_inv is not None and self.orthonormal_basis is not None:
-                
-                l_next = self.L_inv.T @ self.G[:-1,-1]
-                l_corn = np.sqrt(1.0 - np.linalg.norm(l_next)**2)
+            if self.G is not None:
+                self.G = np.pad(self.G, ((0,1),(0,1)), 'constant')
+                for i in range(self.n):
+                    self.G[self.n-1, i] = self.G[i, self.n-1] = self.vecs[-1].dot(self.vecs[i])
 
-                l_inv_next = -self.L_inv.T @ self.G[:-1,-1] @ self.L_inv.T / l_corn
-                
-                self.L_inv = np.pad(self.L_inv, ((0,1),(0,1)), 'constant')
-                self.L_inv[:-1,-1] = l_inv_next.T
-                self.L_inv[-1,-1] = 1.0 / l_corn
-
-                self.orthonormal_basis.add_vector(self.reconstruct(self.L_inv[:,-1]))
-            else:
-                # The new basis means the previous basis is now 
-                self.orthonormal_basis = None
+                # This is for performance's sake, if we only add one vec then we can also
+                # increment the othogonal system associated
+                if incr_ortho and self.orthonormal_basis is not None:
+                    self.orthonormal_basis.add_vector(vec) 
+                else:
+                    # The new basis means the previous basis is now 
+                    self.orthonormal_basis = None
 
         # Unfortunately there's no incremental SVD solution that I know of...
         self.U = self.V = self.S = None
-
+        
     def subspace(self, indices):
         """ Select a subspace corresponding to a subset of the basis, where indices is a Slice object """
-        sub = type(self)(self.vecs[indices], space=self.space)
+        sub = type(self)(self.vecs[indices], space=self.space, is_orthonormal=self.is_orthonormal)
         
         if self.G is not None:
             sub.G = self.G[indices, indices]
@@ -93,7 +110,7 @@ class Basis(object):
         if mask.shape[0] != len(self.vecs):
             raise Exception('Subspace mask must be the same size as length of vectors')
 
-        sub = type(self)(list(compress(self.vecs, mask)), space=self.space)
+        sub = type(self)(list(compress(self.vecs, mask)), space=self.space, is_orthonormal=self.is_orthonormal)
         if self.G is not None:
             sub.G = self.G[mask,mask]
         return sub
@@ -125,9 +142,11 @@ class Basis(object):
 
     def project(self, u, return_coeffs=False):
         
-        # Either we've made the orthonormal basis...
-        if self.orthonormal_basis is not None:
-            return self.orthonormal_basis.project(u) 
+        # Either this basis is orthonormal, or we've made the orthonormal basis...
+        if self.is_orthonormal:
+            return self.reconstruct(self.dot(u))
+        elif self.orthonormal_basis is not None:
+            return self.orthonormal_basis.project(u)
         else:
             if self.G is None:
                 self.make_grammian()
@@ -215,42 +234,9 @@ class Basis(object):
             for i in range(self.n):
                 ortho_vecs.append(self.reconstruct(self.L_inv[:,i]))
                   
-            self.orthonormal_basis = OrthonormalBasis(ortho_vecs, space=self.space)
+            self.orthonormal_basis = Basis(ortho_vecs, space=self.space, is_orthonormal=True)
 
         return self.orthonormal_basis
-
-class OrthonormalBasis(Basis):
-
-    def __init__(self, vecs=None, space='H1'):
-        # We quite naively assume that the basis we are given *is* in 
-        # fact orthonormal, and don't do any testing...
-
-        super().__init__(vecs=vecs, space=space)
-        self.G = np.eye(self.n)
-        #self.G = scipy.sparse.identity(self.n)
-
-    def project(self, u):
-        # Now that the system is orthonormal, we don't need to solve a linear system
-        # to make the projection
-        return self.reconstruct(self.dot(u))
-
-    def orthonormalise(self):
-        return self
-
-    def add_vector(self, vec, incr_ortho=False, check_ortho=True):
-        """ If this is an ortho-basis, we """
-        if check_ortho and abs(vec.norm() - 1) < 1e-14:
-            vec /= vec.norm()
-        if check_ortho and any([abs(v.dot(vec)) > 1e-12 for v in self.vecs]):
-            print('Error: tried to add a non-orthogonal vector to an orthonormal system')
-        else:
-            self.vecs.append(vec)
-            self.n += 1
-            
-        if self.G is not None:
-            self.G = np.eye(self.n)
-        
-        self.U = self.V = self.S = None
 
 class BasisPair(object):
     """ This class automatically sets up the cross grammian, calculates
@@ -336,7 +322,7 @@ class BasisPair(object):
             self.U, self.S, self.V = np.linalg.svd(self.CG)
 
     def Wm_singular_vec(self, index):
-        if not isinstance(self.Wm, OrthonormalBasis) or not isinstance(self.Vn, OrthonormalBasis):
+        if not self.Wm.is_orthonormal or not self.Vn.is_orthonormal:
             raise Exception('Both Wm and Vn must be orthonormal to calculate the largest singular vec!')
         if self.U is None or self.S is None or self.V is None:
             self.calc_svd()
@@ -344,7 +330,7 @@ class BasisPair(object):
         return self.Wm.reconstruct(self.U[:, index])
 
     def Vn_singular_vec(self, index):
-        if not isinstance(self.Wm, OrthonormalBasis) or not isinstance(self.Vn, OrthonormalBasis):
+        if not self.Wm.is_orthonormal or not self.Vn.is_orthonormal:
             raise Exception('Both Wm and Vn must be orthonormal to calculate the largest singular vec!')
         if self.U is None or self.S is None or self.V is None:
             self.calc_svd()
@@ -355,7 +341,7 @@ class BasisPair(object):
         if isinstance(self, FavorableBasisPair):
             return self
         
-        if not isinstance(self.Wm, OrthonormalBasis) or not isinstance(self.Vn, OrthonormalBasis):
+        if not self.Wm.is_orthonormal or not self.Vn.is_orthonormal:
             raise Exception('Both Wm and Vn must be orthonormal to calculate the favourable basis!')
 
         if self.U is None or self.S is None or self.V is None:

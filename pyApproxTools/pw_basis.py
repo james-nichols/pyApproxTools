@@ -8,6 +8,7 @@ Code to deal with piece-wise linear functions on triangulations - allows for tre
 """
 
 import numpy as np
+import scipy.sparse
 
 from pyApproxTools.vector import *
 from pyApproxTools.basis import *
@@ -20,7 +21,8 @@ class PWBasis(Basis):
 
     def __init__(self, vecs=None, space='H1', values_flat=None, pre_allocate=0, file_name=None):
         super().__init__(vecs, space)
-
+        
+        self.values_flat = values_flat
         if vecs is not None:
             # Make a flat "values" thing for speed's sake, so we
             # can use numpy power!
@@ -40,17 +42,19 @@ class PWBasis(Basis):
                         
         elif file_name is not None:
             self.load(file_name)
-        else:
-            raise Exception('Basis either needs vector initialisation or file name!')
     
     def add_vector(self, vec):
         """ Add just one vector, so as to make the new Grammian calculation quick """
         super().add_vector(vec)
-    
-        if self.values_flat.shape[2] <= self.n - 1:
-            self.values_flat.resize((self.values_flat.shape[0], self.values_flat.shape[1], self.n))
         
-        self.values_flat[:,:,self.n-1] = vec.values
+        if self.values_flat is not None:
+            if self.values_flat.shape[2] <= self.n - 1:
+                self.values_flat.resize((self.values_flat.shape[0], self.values_flat.shape[1], self.n))
+            
+            self.values_flat[:,:,self.n-1] = vec.values
+        else:
+            self.values_flat = vec.values[:,:,np.newaxis]
+
 
     def subspace(self, indices):
         """ To be able to do "nested" spaces, the easiest way is to implement
@@ -101,5 +105,4 @@ class PWBasis(Basis):
             self.V = data['V']
         else:
             self.S = self.U = self.V = None
-
 

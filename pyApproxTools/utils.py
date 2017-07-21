@@ -22,8 +22,7 @@ def make_sin_basis(n):
         v_i = FuncVector(params=[[i]], coeffs=[[1.0]], funcs=['H1UISin'])
         V_n.append(v_i)
             
-    return OrthonormalBasis(V_n)
-
+    return Basis(V_n, is_orthonormal=True)
 
 def make_random_delta_basis(n, bounds=None, bound_prop=1.0):
 
