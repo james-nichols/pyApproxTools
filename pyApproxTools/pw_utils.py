@@ -23,6 +23,7 @@ from pyApproxTools.vector import *
 from pyApproxTools.basis import *
 from pyApproxTools.pw_vector import *
 from pyApproxTools.pw_basis import *
+from pyApproxTools.point_generator import *
 
 __all__ = ['DyadicFEMSolver','make_pw_hat_basis','make_pw_sin_basis','make_pw_reduced_basis','make_pw_random_local_integration_basis','make_local_integration_basis']
 
@@ -88,7 +89,7 @@ def make_pw_hat_basis(div):
             v.values[k+1, l+1] = 1.0
             Vn.append(v)
     
-    b = PWBasis(Vn)
+    b = PWBasis(Vn, space='H1')
 
     h = 2 ** (-b.vecs[0].div)
     # We construct the Grammian here explicitly, otherwise it takes *forever*
@@ -108,7 +109,7 @@ def make_pw_hat_basis(div):
     
     return b
 
-def make_pw_sin_basis(div, N=None, space='H1'):
+def make_pw_sin_basis(div, N=None):
     Vn = []
 
     if N is None:
@@ -128,7 +129,7 @@ def make_pw_sin_basis(div, N=None, space='H1'):
                 v_i = PWLinearSqDyadicH1(func = f, div = div)
                 Vn.append(v_i)
 
-    return PWBasis(Vn, space=space)
+    return PWBasis(Vn, space='H1')
 
 
 def make_pw_reduced_basis(n, field_div, fem_div, point_gen=None, space='H1', a_bar=1.0, c=0.5, f=1.0):
@@ -137,7 +138,7 @@ def make_pw_reduced_basis(n, field_div, fem_div, point_gen=None, space='H1', a_b
     side_n = 2**field_div
     
     if point_gen is None:
-        point_gen = pg.MonteCarlo(d=side_n*side_n, n=n, lims=[-1, 1])
+        point_gen = MonteCarlo(d=side_n*side_n, n=n, lims=[-1, 1])
     elif point_gen.n != n:
         raise Exception('Need point dictionary with right number of points!')
 
@@ -154,7 +155,7 @@ def make_pw_reduced_basis(n, field_div, fem_div, point_gen=None, space='H1', a_b
         
     return PWBasis(Vn, space=space), fields
 
-def make_pw_random_local_integration_basis(m, div, width=2, bounds=None, bound_prop=1.0, space='H1', return_map=False):
+def make_pw_random_local_integration_basis(m, div, width=2, bounds=None, bound_prop=1.0, return_map=False):
 
     M_m = []
     
@@ -183,9 +184,8 @@ def make_pw_random_local_integration_basis(m, div, width=2, bounds=None, bound_p
     stencil[0,0]=stencil[-1,-1]=h*h/2.0
     stencil[0,-1]=stencil[-1,0]=h*h
     
-    if space == 'H1':
-        hat_b = make_pw_hat_basis(div=div)
-        hat_b.make_grammian()
+    hat_b = make_pw_hat_basis(div=div)
+    hat_b.make_grammian()
     for i in range(m):
         point = points[i]
 
@@ -194,60 +194,54 @@ def make_pw_random_local_integration_basis(m, div, width=2, bounds=None, bound_p
         meas = PWLinearSqDyadicH1(div=div)
         meas.values[point[0]:point[0]+width,point[1]:point[1]+width] = stencil
 
-        if space == 'H1':
+        # Then we have to make this an element of coarse H1,
+        # which we do by creating a hat basis and solving
+        if scipy.sparse.issparse(hat_b.G):
+            v = scipy.sparse.linalg.spsolve(hat_b.G, meas.values[1:-1,1:-1].flatten())
+        else:
+            v = scipy.linalg.solve(hat_b.G, meas.values[1:-1,1:-1].flatten(), sym_pos=True)
+        # Instead of the reconstruction (the proper way) we can just do a reshape as we have a hat basis...
+        #meas = hat_b.reconstruct(v)
+        meas = PWLinearSqDyadicH1(np.pad(v.reshape((2**div-1, 2**div-1)), ((1,1),(1,1)), 'constant'))
+             
+        M_m.append(meas)
+    
+    W = PWBasis(M_m)
+    if return_map:
+        return W, local_meas_fun
+
+    return W
+
+def make_local_integration_basis(width, spacing, div):
+
+    M_m = []
+    
+    h = 2**(-div)
+
+    stencil = h*h*3.0 * np.ones([width, width])
+    stencil[0,:]=stencil[-1,:]=stencil[:,0]=stencil[:,-1]=h*h*3.0/2.0
+    stencil[0,0]=stencil[-1,-1]=h*h/2.0
+    stencil[0,-1]=stencil[-1,0]=h*h
+   
+    hat_b = make_pw_hat_basis(div=div)
+    hat_b.make_grammian()
+    for i in range(1, 2**div - 1 - width, spacing):
+        for j in range(1, 2**div - 1 - width, spacing):
+
+            meas = PWLinearSqDyadicH1(div=div)
+            meas.values[i:i+width, j:j+width] = stencil
+
             # Then we have to make this an element of coarse H1,
             # which we do by creating a hat basis and solving
             if scipy.sparse.issparse(hat_b.G):
                 v = scipy.sparse.linalg.spsolve(hat_b.G, meas.values[1:-1,1:-1].flatten())
             else:
                 v = scipy.linalg.solve(hat_b.G, meas.values[1:-1,1:-1].flatten(), sym_pos=True)
-            meas = hat_b.reconstruct(v)
-            
-        M_m.append(meas)
-    
-    W = PWBasis(M_m, space)
-    if return_map:
-        return W, local_meas_fun
-
-    return W
-
-
-def make_local_integration_basis(div, int_div, space='H1'):
-
-    if div < int_div:
-        raise Exception('Integration div must be less than or equal to field div')
-
-    M_m = []
-    side_m = 2**int_div
-    h = 2**(-div)
-
-    int_size = 2**(div - int_div)
-    stencil = h*h*3.0 * np.ones([int_size+1, int_size+1])
-    stencil[0,:]=stencil[-1,:]=stencil[:,0]=stencil[:,-1]=h*h*3.0/2.0
-    stencil[0,0]=stencil[-1,-1]=h*h/2.0
-    stencil[0,-1]=stencil[-1,0]=h*h
-   
-    if space == 'H1':
-        hat_b = make_pw_hat_basis(div=div, space='H1')
-        hat_b.make_grammian()
-
-    for i in range(side_m):
-        for j in range(side_m):
-
-            meas = PWLinearSqDyadicH1(div=div)
-            meas.values[i*int_size:(i+1)*int_size+1, j*int_size:(j+1)*int_size+1] = stencil
-
-            if space == 'H1':
-                # Then we have to make this an element of coarse H1,
-                # which we do by creating a hat basis and solving
-                if scipy.sparse.issparse(hat_b.G):
-                    v = scipy.sparse.linalg.spsolve(hat_b.G, meas.values[1:-1,1:-1].flatten())
-                else:
-                    v = scipy.linalg.solve(hat_b.G, meas.values[1:-1,1:-1].flatten(), sym_pos=True)
-                meas = hat_b.reconstruct(v)
-
+            # Instead of the reconstruction (the proper way) we can just do a reshape as we have a hat basis...
+            #meas = hat_b.reconstruct(v)
+            meas = PWLinearSqDyadicH1(np.pad(v.reshape((2**div-1, 2**div-1)), ((1,1),(1,1)), 'constant'))
             M_m.append(meas)
     
-    W = PWBasis(M_m, space)
+    W = PWBasis(M_m)
     return W
 
