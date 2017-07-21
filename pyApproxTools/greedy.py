@@ -17,7 +17,9 @@ import time
 import pdb
 
 from pyApproxTools.vector import *
+from pyApproxTools.pw_vector import *
 from pyApproxTools.basis import *
+from pyApproxTools.pw_basis import *
 
 __all__ = ['CollectiveOMP', 'WorstCaseOMP', 'WorstVecOMP']
 
