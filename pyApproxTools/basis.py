@@ -199,7 +199,7 @@ class Basis(object):
         for i in range(M.shape[0]):
             vecs.append(self.reconstruct(M[i,:]))
         
-        return Basis(vecs, space=self.space)
+        return type(self)(vecs, space=self.space)
 
     def ortho_matrix_multiply(self, M):
         # Build another basis from an orthonormal matrix, 
@@ -234,7 +234,7 @@ class Basis(object):
             for i in range(self.n):
                 ortho_vecs.append(self.reconstruct(self.L_inv[:,i]))
                   
-            self.orthonormal_basis = Basis(ortho_vecs, space=self.space, is_orthonormal=True)
+            self.orthonormal_basis = type(self)(ortho_vecs, space=self.space, is_orthonormal=True)
 
         return self.orthonormal_basis
 

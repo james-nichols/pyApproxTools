@@ -19,8 +19,8 @@ __all__ = ['PWBasis']
 class PWBasis(Basis):
     """  A basis that knows about the PW nature of the vectors, and stores them in a flat array, for speed """
 
-    def __init__(self, vecs=None, space='H1', values_flat=None, pre_allocate=0, file_name=None):
-        super().__init__(vecs, space)
+    def __init__(self, vecs=None, space='H1', is_orthonormal=False, values_flat=None, pre_allocate=0, file_name=None):
+        super().__init__(vecs, space, is_orthonormal)
         
         self.values_flat = values_flat
         if vecs is not None:
@@ -43,14 +43,12 @@ class PWBasis(Basis):
         elif file_name is not None:
             self.load(file_name)
     
-    def add_vector(self, vec):
+    def add_vector(self, vec, incr_ortho=True, check_ortho=True):
         """ Add just one vector, so as to make the new Grammian calculation quick """
-        super().add_vector(vec)
-        
+        super().add_vector(vec, incr_ortho=incr_ortho, check_ortho=check_ortho)
+
         if self.values_flat is not None:
-            if self.values_flat.shape[2] <= self.n - 1:
-                self.values_flat.resize((self.values_flat.shape[0], self.values_flat.shape[1], self.n))
-            
+            self.values_flat = np.pad(self.values_flat, ((0,0),(0,0),(0,self.n-self.values_flat.shape[2])), 'constant')
             self.values_flat[:,:,self.n-1] = vec.values
         else:
             self.values_flat = vec.values[:,:,np.newaxis]
