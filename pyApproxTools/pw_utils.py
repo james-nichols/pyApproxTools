@@ -217,6 +217,7 @@ def make_local_integration_basis(width, spacing, div):
     M_m = []
     
     h = 2**(-div)
+    local_meas_fun = PWConstantSqDyadicL2(div=div)
 
     stencil = h*h*3.0 * np.ones([width, width])
     stencil[0,:]=stencil[-1,:]=stencil[:,0]=stencil[:,-1]=h*h*3.0/2.0
@@ -225,12 +226,13 @@ def make_local_integration_basis(width, spacing, div):
    
     hat_b = make_pw_hat_basis(div=div)
     hat_b.make_grammian()
-    for i in range(1, 2**div - 1 - width, spacing):
-        for j in range(1, 2**div - 1 - width, spacing):
+    for i in range(1,2**div - width + 1, spacing):
+        for j in range(1,2**div - width + 1, spacing):
 
             meas = PWLinearSqDyadicH1(div=div)
             meas.values[i:i+width, j:j+width] = stencil
-
+            
+            local_meas_fun.values[i:i+width, j:j+width] += 1
             # Then we have to make this an element of coarse H1,
             # which we do by creating a hat basis and solving
             if scipy.sparse.issparse(hat_b.G):
