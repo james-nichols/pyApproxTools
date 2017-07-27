@@ -453,6 +453,30 @@ class H1UIHat(H1UIElement):
         self.f = H1UIAffine()
         
     def evaluate(self, params, x):
+        d1, d2, d3 = self._make_dicts(params)
+        return self._normaliser(params) * (self.f.evaluate(d1) + self.f.evaluate(d2) + self.f.evaluate(d3))
+    
+    def dot(self, right, left_params, right_params):
+        d1, d2, d3 = self._make_dicts(left_params)
+        return right._affine_dot(self, d1, right_params) + right._affine_dot(self, d2, right_params) \
+               + right._affine_dot(self, d3, right_params)
+    
+    def _affine_dot(self, left, left_params, right_params):
+        d1, d2, d3 = self._make_dicts(left_params)
+        return self.f._affine_dot(left, d1, right_params) + self.f._affine_dot(left, d2, right_params) \
+               + self.f._affine_dot(left, d3, right_params)
+    
+    def _sin_dot(self, left, left_params, right_params):
+        d1, d2, d3 = self._make_dicts(left_params)
+        return self.f._sin_dot(left, d1, right_params) + self.f._sin_dot(left, d2, right_params) \
+               + self.f._sin_dot(left, d3, right_params)
+        
+    def _avg_dot(self, left, left_params, right_params):
+        d1, d2, d3 = self._make_dicts(left_params)
+        return self.f._avg_dot(left, d1, right_params) + self.f._avg_dot(left, d2, right_params) \
+               + self.f._avg_dot(left, d3, right_params)
+        
+    def _make_dicts(self, params):
         
         a = params.keys_array()[:,0]
         b = params.keys_array()[:,1]
@@ -465,35 +489,10 @@ class H1UIHat(H1UIElement):
         d2 = AlgebraDict(float, zip(zip(0.5*(a+b),m), -2*c))
         d3 = AlgebraDict(float, zip(zip(b,m), c))
 
-        return self._normaliser(params) * (self.f.evaluate(d1) + self.f.evaluate(d2) + self.f.evaluate(d3))
-    
-    def dot(self, right, left_params, right_params):
+        return d1, d2, d3
 
-        a = left_params.keys_array()[:,0]
-        b = left_params.keys_array()[:,1]
-        c = left_params.values_array()
-
-        m = 4 / ((b - a) * (b - a))
-
-        d1 = AlgebraDict(float, zip(zip(a,m), c))
-        d2 = AlgebraDict(float, zip(zip(0.5*(a+b),m), -2*c))
-        d3 = AlgebraDict(float, zip(zip(b,m), c))
-
-        return self._normaliser(left_params) * (f.dot(right, d1, right_params) + f.dot(right, d2, right_params) \
-                + f.dot(right, d3, right_params))
-        
     def _normaliser(self, params):
-        
-        a = params.keys_array()[:,0]
-        b = params.keys_array()[:,1]
-        c = params.values_array()
-
-        m = 4 / ((b - a) * (b - a))
-
-        d1 = AlgebraDict(float, zip(zip(a,m), c))
-        d2 = AlgebraDict(float, zip(zip(0.5*(a+b),m), -2*c))
-        d3 = AlgebraDict(float, zip(zip(b,m), c))
-        
+        d1, d2, d3 = self._make_dicts(params)
         # p is assumed to be an array of size n*2
         return 1.0 / np.sqrt(self.f._self_dot(d1, d1) + self.f._self_dot(d2, d2) + self.f._self_dot(d3, d3) \
                 + 2 * self.f._self_dot(d1, d2) + 2 * self.f._self_dot(d1, d3) + 2 * self.f._self_dot(d2, d3))
