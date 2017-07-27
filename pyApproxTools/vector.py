@@ -219,7 +219,7 @@ class H1UISin(H1UIElement):
 
         #result = ln * lc * rn * rc * math.sqrt(2) * s * np.sin(m * math.pi * a)
         pn = (-1)**m
-        result = ln * lc * rn * rc * s * ((a - 1) * pn - np.sin(m * math.pi * a) / (m * math.pi) ) / (m * math.pi)
+        result = ln * lc * rn * rc * s * 3 * ((a - 1) * pn - np.sin(m * math.pi * a) / (m * math.pi) ) / (m * math.pi)
 
         return result.sum()
 
@@ -348,9 +348,9 @@ class H1UIAvg(H1UIElement):
         rn = self._normaliser(right_params)
 
         Idb = d < b
-        Ida = a < d
+        Ida = d < a 
     
-        result = ln * lc * rn * rc * 0.5 * s * (0.5 * (a + b) * (1-d)**3 - Idb * 0.25 * (b-d)**4 + Ida * 0.25 * (a-d)**4)
+        result = ln * lc * rn * rc * 0.5 * s * (0.5 * (b*b - a*a) * (1-d)**3 - Idb * 0.25 * (b-d)**4 + Ida * 0.25 * (a-d)**4) / (b - a)
         #((1-d)**3 * (b - a) - Idb * (b-d)**3 + Ida * (a-d)**3)
         return result.sum()
 
@@ -371,7 +371,7 @@ class H1UIAffine(H1UIElement):
         
         hi = x[:,np.newaxis] > a #np.less.outer(x, a)
         
-        return c * self._normaliser(params) * (3/2) * (x[:,np.newaxis] * (1.0 - a)**3 - hi * (x[:,np.newaxis] - a)**3)
+        return c * self._normaliser(params) * 0.5 * (x[:,np.newaxis] * (1.0 - a)**3 - hi * (x[:,np.newaxis] - a)**3)
         
     def dot(self, right, left_params, right_params):
         return right._affine_dot(self, left_params, right_params)
@@ -418,7 +418,7 @@ class H1UIAffine(H1UIElement):
         #result = ln * lc * rn * rc * math.sqrt(2) * s * np.sin(m * math.pi * a)
 
         pn = (-1)**m
-        result = ln * lc * rn * rc * s * ((a - 1) * pn - np.sin(m * math.pi * a) / (m * math.pi) ) / (m * math.pi)
+        result = ln * lc * rn * rc * s * 3 * ((a - 1) * pn - np.sin(m * math.pi * a) / (m * math.pi) ) / (m * math.pi)
         return result.sum()
 
     def _avg_dot(self, left, left_params, right_params):
@@ -438,7 +438,7 @@ class H1UIAffine(H1UIElement):
         Ida = d < a
     
         #result = ln * lc * rn * rc * 0.5 * s * ((1-d)**3 * (b - a) - Idb * (b-d)**3 + Ida * (a-d)**3)
-        result = ln * lc * rn * rc * 0.5 * s * (0.5 * (a + b) * (1-d)**3 - Idb * 0.25 * (b-d)**4 + Ida * 0.25 * (a-d)**4)
+        result = ln * lc * rn * rc * 0.5 * s * (0.5 * (b*b - a*a) * (1-d)**3 - Idb * 0.25 * (b-d)**4 + Ida * 0.25 * (a-d)**4) / (b - a)
         return result.sum()
 
     def _normaliser(self, params):
