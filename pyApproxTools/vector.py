@@ -132,14 +132,18 @@ class Element(object):
             Here we use evaluate for dot products, so must provide all evaluation """
         pass
 
-    def _normaliser(self, p):
+    def _normaliser(self, params):
         pass
 
-    def _delta_dot(self, right, left_params, right_params):
+    def _delta_dot(self, left, left_params, right_params):
         """ Dotting with a delta function is always the same... """
-        x0 = right_params.keys_array()
         rc = right_params.values_array()
-        return (right._normaliser(x0)[:,np.newaxis] * rc[:,np.newaxis] * self.evaluate(left_params, x0)).sum()
+
+        x0 = left_params.keys_array()
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
+        
+        return (ln * lc * self.evaluate(right_params, x0)).sum()
 
     def _avg_dot(self, right, left_params, right_params):
         # This is another one that the function should know about - how to do a
@@ -172,39 +176,56 @@ class H1UISin(H1UIElement):
     def evaluate(self, params, x):
         m = params.keys_array()
         c = params.values_array()
-        return c * np.sin(math.pi * np.outer(x, m)) * self._normaliser(m)
+        return c * np.sin(math.pi * np.outer(x, m)) * self._normaliser(params)
     
     def dot(self, right, left_params, right_params):
+        return right._sin_dot(self, left_params, right_params)
+
+    def _sin_dot(self, left, left_params, right_params):
+        return self._self_dot(left_params, right_params)
+
+    def _self_dot(self, left_params, right_params):
         lc = left_params.values_array()
         rc = right_params.values_array()
         lp = left_params.keys_array()
         rp = left_params.keys_array()
 
-        if isinstance(right, type(self)):
-            return (lc[:,np.newaxis] * rc * np.equal.outer(lp, rp)).sum()
-        elif isinstance(right, H1UIDelta):
-            return self._delta_dot(right, left_params, right_params)
-        elif isinstance(right, H1UIAvg):
-            return self._avg_dot(right, left_params, right_params)
-        #elif isinstance(right, (H1UIAvg, H1UIPoly)):
-        return 0.0 # TO BE IMPLEMENTED
+        return (lc[:,np.newaxis] * rc * np.equal.outer(lp, rp)).sum()
 
-    def _avg_dot(self, right, left_params, right_params):
-        a = right_params.keys_array()[:, 0]
-        b = right_params.keys_array()[:, 1]
+    def _avg_dot(self, left, left_params, right_params):
+        a = left_params.keys_array()[:, 0][:,np.newaxis]
+        b = left_params.keys_array()[:, 1][:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
+
+        m = right_params.keys_array()
         rc = right_params.values_array()
-
-        m = left_params.keys_array()
-        lc = left_params.values_array()
-        
-        ln = self._normaliser(left_params.keys_array())
-        rn = right._normaliser(right_params.keys_array())
+        rn = self._normaliser(right_params)
          
-        return (ln[:, np.newaxis] * rn * lc[:,np.newaxis] * rc * (np.cos(math.pi * m[:,np.newaxis] * a) \
-                - np.cos(math.pi * m[:,np.newaxis] * b)) / (math.pi * m[:,np.newaxis] * (b - a))).sum()
+        result = ln * rn * lc * rc * (np.cos(math.pi * m * a) - np.cos(math.pi * m * b)) / (math.pi * m * (b - a))
+        return result.sum()
     
-    def _normaliser(self, p):
-        return math.sqrt(2.0) / (math.pi * p)
+    def _affine_dot(self, left, left_params, right_params):
+        # affine params
+        a = left_params.keys_array()[:,0][:,np.newaxis]
+        s = left_params.keys_array()[:,1][:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
+        
+        # sin params
+        m = right_params.keys_array()
+        rc = right_params.values_array()
+        rn = self._normaliser(right_params)
+
+        #result = ln * lc * rn * rc * math.sqrt(2) * s * np.sin(m * math.pi * a)
+        pn = (-1)**m
+        result = ln * lc * rn * rc * s * ((a - 1) * pn - np.sin(m * math.pi * a) / (m * math.pi) ) / (m * math.pi)
+
+        return result.sum()
+
+    def _normaliser(self, params):
+        m = params.keys_array()
+        return math.sqrt(2.0) / (math.pi * m)
 
 class H1UIDelta(H1UIElement):
 
@@ -217,8 +238,8 @@ class H1UIDelta(H1UIElement):
         # This is now a matrix of size len(x) * len(x0)
         choice = np.less.outer(x, x0) #np.array([x > x0ref for x0ref in x0])
 
-        lower = self._normaliser(x0) * np.outer(x, (1. - x0))
-        upper = self._normaliser(x0) * np.outer((1. - x), x0)
+        lower = self._normaliser(params) * np.outer(x, (1. - x0))
+        upper = self._normaliser(params) * np.outer((1. - x), x0)
         
         if np.isscalar(choice):
             return lower * choice + upper * (not choice)
@@ -226,13 +247,17 @@ class H1UIDelta(H1UIElement):
         return c * (lower * choice + upper * (~choice))
     
     def dot(self, right, left_params, right_params):
-        if isinstance(right, H1UIDelta):
-            return self._delta_dot(right, left_params, right_params)
-        elif isinstance(right, (H1UISin, H1UIAvg, H1UIPoly)):
-            return right.dot(self, right_params, left_params)
-        return 0.0
+        return right._delta_dot(self, left_params, right_params)
 
-    def _normaliser(self, p):
+    def _sin_dot(self, left, left_params, right_params):
+        return left._delta_dot(self, right_params, left_params)
+    def _avg_dot(self, left, left_params, right_params):
+        return left._delta_dot(self, right_params, left_params)
+    def _affine_dot(self, left, left_params, right_params):
+        return left._delta_dot(self, right_params, left_params)
+
+    def _normaliser(self, params):
+        p = params.keys_array()
         return 1. / np.sqrt((1. - p) * p)
 
 class H1UIAvg(H1UIElement):
@@ -254,28 +279,24 @@ class H1UIAvg(H1UIElement):
         m = l - 0.5 * (a - x[:,np.newaxis]) * (a - x[:,np.newaxis]) / (b - a)
         h = 0.5 * (a + b) * (1.0 - x[:,np.newaxis])
         
-        return c * self._normaliser(params.keys_array()) * (low * l + m * mid + h * hi)
+        return c * self._normaliser(params) * (low * l + m * mid + h * hi)
         
     def dot(self, right, left_params, right_params):
-        if isinstance(right, type(self)):
-            return self._self_dot(right, left_params, right_params)
-        elif isinstance(right, H1UIDelta):
-            return self._delta_dot(right, left_params, right_params)
-        elif isinstance(right, (H1UISin, H1UIPoly)):
-            return right.dot(self, right_params, left_params)
-        return 0.0
-       
+        return right._avg_dot(self, left_params, right_params)
     
-    def _self_dot(self, right, left_params, right_params):
+    def _avg_dot(self, right, left_params, right_params):
+        return self._self_dot(left_params, right_params)
+
+    def _self_dot(self, left_params, right_params):
         a = left_params.keys_array()[:,0][:,np.newaxis]
         b = left_params.keys_array()[:,1][:,np.newaxis]
         lc = left_params.values_array()[:,np.newaxis]
-        ln = self._normaliser(left_params.keys_array())[:,np.newaxis]
+        ln = self._normaliser(left_params)[:,np.newaxis]
 
         c = right_params.keys_array()[:,0]
         d = right_params.keys_array()[:,1]
         rc = right_params.values_array()
-        rn = right._normaliser(right_params.keys_array())
+        rn = self._normaliser(right_params)
 
         if any(a > b) or any(c > d): 
             raise Exception('Some local-average intervals are in reverse, a > b')
@@ -298,8 +319,43 @@ class H1UIAvg(H1UIElement):
         return (1.0/(b-a)) * ((1 - 0.5 * (c + d)) * 0.5 * (d*d - a*a) - (d - c)*(d - c) / 6.0 \
                 - 0.25 * (c + d) * ((1-b)*(1-b) - (1-d)*(1-d)))
 
-    def _normaliser(self, p):
-        # p is assumed to be an array of size n*2
+    def _sin_dot(self, left, left_params, right_params):
+        # sin params
+        m = left_params.keys_array()[:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
+
+        # avg params
+        a = right_params.keys_array()[:, 0]
+        b = right_params.keys_array()[:, 1]
+        rc = right_params.values_array()
+        rn = self._normaliser(right_params)
+         
+        result = ln * rn * lc * rc * (np.cos(math.pi * m * a) - np.cos(math.pi * m * b)) / (math.pi * m * (b - a))
+        return result.sum()
+
+    def _affine_dot(self, left, left_params, right_params):
+        # affine params
+        d = left_params.keys_array()[:,0][:,np.newaxis]
+        s = left_params.keys_array()[:,1][:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
+
+        # avg params
+        a = right_params.keys_array()[:, 0]
+        b = right_params.keys_array()[:, 1]
+        rc = right_params.values_array()
+        rn = self._normaliser(right_params)
+
+        Idb = d < b
+        Ida = a < d
+    
+        result = ln * lc * rn * rc * 0.5 * s * (0.5 * (a + b) * (1-d)**3 - Idb * 0.25 * (b-d)**4 + Ida * 0.25 * (a-d)**4)
+        #((1-d)**3 * (b - a) - Idb * (b-d)**3 + Ida * (a-d)**3)
+        return result.sum()
+
+    def _normaliser(self, params):
+        p = params.keys_array()
         return 1.0 / np.sqrt(p[:,0] + (p[:,1] - p[:,0])/3.0 - 0.25 * (p[:,0] + p[:,1]) * (p[:,0] + p[:,1]))
 
     def _nt(self, a, b):
@@ -312,51 +368,135 @@ class H1UIAffine(H1UIElement):
         a = params.keys_array()[:,0]
         m = params.keys_array()[:,1]
         c = params.values_array()
-
+        
         hi = x[:,np.newaxis] > a #np.less.outer(x, a)
-
-        return c * self._normaliser(params.keys_array()) * (x[:,np.newaxis] * (1.0 - a)**3 - hi * (x[:,np.newaxis] - a)**3)
+        
+        return c * self._normaliser(params) * (3/2) * (x[:,np.newaxis] * (1.0 - a)**3 - hi * (x[:,np.newaxis] - a)**3)
         
     def dot(self, right, left_params, right_params):
-        if isinstance(right, type(self)):
-            return self._self_dot(right, left_params, right_params)
-        elif isinstance(right, H1UIDelta):
-            return self._delta_dot(right, left_params, right_params)
-        elif isinstance(right, H1UIAvg):
-            return self._avg_dot(right, left_params, right_params)
-        elif isinstance(right, (H1UISin, H1UIPoly)):
-            return right.dot(self, right_params, left_params)
-        return 0.0
+        return right._affine_dot(self, left_params, right_params)
     
-    def _self_dot(self, right, left_params, right_params):
+    def _affine_dot(self, left, left_params, right_params):
+        return self._self_dot(left_params, right_params)
+
+    def _self_dot(self, left_params, right_params):
         # The algorithm is ordered, so we must order it
-       
         a = left_params.keys_array()[:,0][:,np.newaxis]
         m = left_params.keys_array()[:,1][:,np.newaxis]
         lc = left_params.values_array()[:,np.newaxis]
-        ln = self._normaliser(left_params.keys_array())[:,np.newaxis]
+        ln = self._normaliser(left_params)[:,np.newaxis]
 
         b = right_params.keys_array()[:,0]
         n = right_params.keys_array()[:,1]
         rc = right_params.values_array()
-        rn = right._normaliser(right_params.keys_array())
+        rn = self._normaliser(right_params)
 
         order = (a <= b)
-
-        result = lc * ln * rc * rn (order * self._aff_ordered_dot(a, m, b, n) + ~order * self._aff_ordered_dot(b, n, a, m))
-
+        
+        result = lc * ln * rc * rn * (order * self._aff_ordered_dot(a, m, b, n) + ~order * self._aff_ordered_dot(b, n, a, m))
         return result.sum()
 
     def _aff_ordered_dot(self, a, m, b, n):
         # This routine assumes a <= b. Also assumes that, if a and b are vectors, that a is a row vector, i.e.
         # that we have done the a[:, np.newaxis] step
-        return 0.25 * m * n * (0.20 * (1-b**5) - 0.5 * (a + b) * (1 - b**4) + 0.5 * (a*a + b*b) * (1-b**3) \
-                         - a * b * (a + b) * (1 - b*b) + a * a * b * b * (1 - b) - (1 - a**3) * (1 - b**3))
+        d = 0.25 * m * n * (9*(0.20 * (1-b**5) - 0.5 * (a + b) * (1 - b**4) + (a*a + 4*a*b + b*b) * (1-b**3) / 3 \
+                         - a * b * (a + b) * (1 - b*b) + a * a * b * b * (1 - b)) - (1-a)**3 * (1-b)**3)
+        return d
 
-    def _normaliser(self, p):
+    def _sin_dot(self, left, left_params, right_params):
+        # sin params
+        m = left_params.keys_array()[:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
+        
+        # affine params
+        a = right_params.keys_array()[:,0]
+        s = right_params.keys_array()[:,1]
+        rc = right_params.values_array()
+        rn = self._normaliser(right_params)
+        
+        #result = ln * lc * rn * rc * math.sqrt(2) * s * np.sin(m * math.pi * a)
+
+        pn = (-1)**m
+        result = ln * lc * rn * rc * s * ((a - 1) * pn - np.sin(m * math.pi * a) / (m * math.pi) ) / (m * math.pi)
+        return result.sum()
+
+    def _avg_dot(self, left, left_params, right_params):
+        # avg params
+        a = left_params.keys_array()[:, 0][:,np.newaxis]
+        b = left_params.keys_array()[:, 1][:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
+        
+        # affine params
+        d = right_params.keys_array()[:,0]
+        s = right_params.keys_array()[:,1]
+        rc = right_params.values_array()
+        rn = self._normaliser(right_params)
+
+        Idb = d < b
+        Ida = d < a
+    
+        #result = ln * lc * rn * rc * 0.5 * s * ((1-d)**3 * (b - a) - Idb * (b-d)**3 + Ida * (a-d)**3)
+        result = ln * lc * rn * rc * 0.5 * s * (0.5 * (a + b) * (1-d)**3 - Idb * 0.25 * (b-d)**4 + Ida * 0.25 * (a-d)**4)
+        return result.sum()
+
+    def _normaliser(self, params):
+        p = params.keys_array()
+        return 1.0 / np.sqrt(self._aff_ordered_dot(p[:,0], p[:,1], p[:,0], p[:,1]))
+
+class H1UIHat(H1UIElement):
+    """ Hat function between a and b, normalised in L2 """
+
+    def __init__(self):
+        super().__init__()
+        self.f = H1UIAffine()
+        
+    def evaluate(self, params, x):
+        
+        a = params.keys_array()[:,0]
+        b = params.keys_array()[:,1]
+        c = params.values_array()
+
+        m = 4 / ((b - a) * (b - a))
+        
+        # Argh have to make new dicts
+        d1 = AlgebraDict(float, zip(zip(a,m), c))
+        d2 = AlgebraDict(float, zip(zip(0.5*(a+b),m), -2*c))
+        d3 = AlgebraDict(float, zip(zip(b,m), c))
+
+        return self._normaliser(params) * (self.f.evaluate(d1) + self.f.evaluate(d2) + self.f.evaluate(d3))
+    
+    def dot(self, right, left_params, right_params):
+
+        a = left_params.keys_array()[:,0]
+        b = left_params.keys_array()[:,1]
+        c = left_params.values_array()
+
+        m = 4 / ((b - a) * (b - a))
+
+        d1 = AlgebraDict(float, zip(zip(a,m), c))
+        d2 = AlgebraDict(float, zip(zip(0.5*(a+b),m), -2*c))
+        d3 = AlgebraDict(float, zip(zip(b,m), c))
+
+        return self._normaliser(left_params) * (f.dot(right, d1, right_params) + f.dot(right, d2, right_params) \
+                + f.dot(right, d3, right_params))
+        
+    def _normaliser(self, params):
+        
+        a = params.keys_array()[:,0]
+        b = params.keys_array()[:,1]
+        c = params.values_array()
+
+        m = 4 / ((b - a) * (b - a))
+
+        d1 = AlgebraDict(float, zip(zip(a,m), c))
+        d2 = AlgebraDict(float, zip(zip(0.5*(a+b),m), -2*c))
+        d3 = AlgebraDict(float, zip(zip(b,m), c))
+        
         # p is assumed to be an array of size n*2
-        return 1.0 / np.sqrt(self._aff_dot(self, p, p))
-
+        return 1.0 / np.sqrt(self.f._self_dot(d1, d1) + self.f._self_dot(d2, d2) + self.f._self_dot(d3, d3) \
+                + 2 * self.f._self_dot(d1, d2) + 2 * self.f._self_dot(d1, d3) + 2 * self.f._self_dot(d2, d3))
 
 class H1UIPoly(H1UIElement):
     pass
