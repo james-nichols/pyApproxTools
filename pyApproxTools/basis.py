@@ -192,8 +192,8 @@ class Basis(object):
     def matrix_multiply(self, M):
         # Build another basis from a matrix, essentially just calls 
         # reconstruct for each row in M
-        if M.shape[0] != M.shape[1] or M.shape[0] != self.n:
-            raise Exception('M must be a {0}x{1} square matrix'.format(self.n, self.n))
+        if M.shape[1] != self.n:
+            raise Exception('M must have {0} cols'.format(self.n))
 
         vecs = []
         for i in range(M.shape[0]):
@@ -205,7 +205,7 @@ class Basis(object):
         # Build another basis from an orthonormal matrix, 
         # which means that the basis that comes from it
         # is also orthonormal *if* it was orthonormal to begin with
-        if M.shape[0] != M.shape[1] or M.shape[0] != self.n:
+        if M.shape[0] != M.shape[1] or M.shape[1] != self.n:
             raise Exception('M must be a {0}x{1} square matrix'.format(self.n, self.n))
 
         vecs = []
@@ -213,7 +213,7 @@ class Basis(object):
             vecs.append(self.reconstruct(M[i,:]))
         
         # In case this is an orthonormal basis
-        return type(self)(vecs, space=self.space)
+        return type(self)(vecs, space=self.space, is_orthonormal=True)
 
     def orthonormalise(self):
     
