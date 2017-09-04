@@ -171,6 +171,10 @@ class H1UIElement(Element):
         self.domain = (0,1)
         self.space = 'H1'
 
+    def latex_str(self, params):
+        return r'\mathrm{func}_{{{{0}}}}(x)'.format(params)
+
+
 class H1UISin(H1UIElement):
 
     def evaluate(self, params, x):
@@ -226,6 +230,9 @@ class H1UISin(H1UIElement):
         m = params.keys_array()
         return math.sqrt(2.0) / (math.pi * m)
 
+    def latex_str(self, params):
+        return r'\sin({{{0}}} \pi x)'.format(params)
+
 class H1UIDelta(H1UIElement):
 
     def evaluate(self, params, x):
@@ -258,6 +265,9 @@ class H1UIDelta(H1UIElement):
     def _normaliser(self, params):
         p = params.keys_array()
         return 1. / np.sqrt((1. - p) * p)
+
+    def latex_str(self, params):
+        return r'\delta_{{{0}}} (x)'.format(params)
 
 class H1UIAvg(H1UIElement):
 
@@ -359,6 +369,9 @@ class H1UIAvg(H1UIElement):
     def _nt(self, a, b):
         return 1.0 / np.sqrt(a + (b - a)/3.0 - 0.25 * (a + b) * (a + b))
 
+    def latex_str(self, params):
+        return r'\mathbb{1}' + '_{{{0}}}(x)'.format(params)
+
 class H1UIAffine(H1UIElement):
 
     def evaluate(self, params, x):
@@ -440,44 +453,55 @@ class H1UIAffine(H1UIElement):
         result = 1.0 / np.sqrt(self._aff_ordered_dot(p, p))
         return np.nan_to_num(result)
 
+    def latex_str(self, params):
+        return r'U(x - {{{0}}}) (x - {{{0}}})'.format(params[0])
+
 class H1UIHat(H1UIElement):
-    """ Hat function between a and b, normalised in L2 """
+    """ Hat function between a and b, normalised in L2, then in H1 """
 
     def __init__(self):
         super().__init__()
         self.f = H1UIAffine()
-        
-    def evaluate(self, params, x):
+ 
+    def old_evaluate(self, params, x):
         d1, d2, d3 = self._make_dicts(params)
         return self._normaliser(params) * (self.f.evaluate(d1, x) + self.f.evaluate(d2, x) + self.f.evaluate(d3, x))
-    
+ 
+    def evaluate(self, params, x):
+        low, m_low, mid, m_mid, hi, m_hi, c = self._make_params(params)
+        return c * self._normaliser(params) * (m_low*self._inner_evaluate(low, x) + m_mid*self._inner_evaluate(mid, x) + m_hi*self._inner_evaluate(hi, x))
+
+    def _inner_evaluate(self, a, x):
+        hi = x[:,np.newaxis] > a #np.less.outer(x, a)
+        return 0.5 * (x[:,np.newaxis] * (1.0 - a)**3 - hi * (x[:,np.newaxis] - a)**3)
+
     def dot(self, right, left_params, right_params):
         d1, d2, d3 = self._make_dicts(left_params)
         return right._affine_dot(self.f, d1, right_params) + right._affine_dot(self.f, d2, right_params) \
                + right._affine_dot(self.f, d3, right_params)
-    
+
     def _affine_dot(self, left, left_params, right_params):
         d1, d2, d3 = self._make_dicts(right_params)
         return self.f._affine_dot(left, left_params, d1) + self.f._affine_dot(left, left_params, d2) \
                + self.f._affine_dot(left, left_params, d3)
-    
+ 
     def _sin_dot(self, left, left_params, right_params):
         d1, d2, d3 = self._make_dicts(right_params)
         return self.f._sin_dot(left, left_params, d1) + self.f._sin_dot(left, left_params, d2) \
                + self.f._sin_dot(left, left_params, d3)
-        
+ 
     def _avg_dot(self, left, left_params, right_params):
         d1, d2, d3 = self._make_dicts(right_params)
         return self.f._avg_dot(left, left_params, d1) + self.f._avg_dot(left, left_params, d2) \
                + self.f._avg_dot(left, left_params, d3)
-        
+ 
     def _make_dicts(self, params):
         a = params.keys_array()[:,0]
         b = params.keys_array()[:,1]
         c = params.values_array()
 
         m = 4 / ((b - a) * (b - a))
-        
+ 
         # Argh have to make new dicts
         d1 = AlgebraDict(float, zip(a, c * m))
         d2 = AlgebraDict(float, zip(0.5*(a+b), -2*c * m))
@@ -485,11 +509,33 @@ class H1UIHat(H1UIElement):
 
         return d1, d2, d3
 
+    def _make_params(self, params):
+        a = params.keys_array()[:,0]
+        b = params.keys_array()[:,1]
+        c = params.values_array()
+
+        m = 4 / ((b - a) * (b - a))
+        
+        return a, m, 0.5*(a+b), -2*m, b, m, c
+
+    def _aff_ordered_dot(self, a, b):
+        # This routine assumes a <= b. Also assumes that, if a and b are vectors, that a is a row vector, i.e.
+        # that we have done the a[:, np.newaxis] step
+        d = 0.25 * (9*(0.20 * (1-b**5) - 0.5 * (a + b) * (1 - b**4) + (a*a + 4*a*b + b*b) * (1-b**3) / 3 \
+                    - a * b * (a + b) * (1 - b*b) + a * a * b * b * (1 - b)) - (1-a)**3 * (1-b)**3)
+
     def _normaliser(self, params):
         d1, d2, d3 = self._make_dicts(params)
+        l, ml, m, mm, h, mh, c = self._make_params(params)
+
         # p is assumed to be an array of size n*2
-        return 1.0 / np.sqrt(self.f._self_dot(d1, d1) + self.f._self_dot(d2, d2) + self.f._self_dot(d3, d3) \
-                + 2 * self.f._self_dot(d1, d2) + 2 * self.f._self_dot(d1, d3) + 2 * self.f._self_dot(d2, d3))
+        #return 1.0 / np.sqrt(self.f._self_dot(d1, d1) + self.f._self_dot(d2, d2) + self.f._self_dot(d3, d3) \
+        #        + 2 * self.f._self_dot(d1, d2) + 2 * self.f._self_dot(d1, d3) + 2 * self.f._self_dot(d2, d3))
+        return 1.0 / np.sqrt(ml * ml * self._aff_ordered_dot(l,l) + mm * mm * self._aff_ordered_dot(m, m) + mh * mh * self._aff_ordered_dot(h, h) \
+                + ml * mm * self._aff_ordered_dot(l, m) + ml * mh * self._aff_ordered_dot(l, h) + mm * mh * self._aff_ordered_dot(m, h))
+
+    def latex_str(self, params):
+        return r'\mathrm{hat}_{{{{0}}},{{{1}}}}(x)'.format(params[0], params[1])
 
 class H1UIPoly(H1UIElement):
     pass
@@ -548,6 +594,24 @@ class FuncVector(Vector):
             string += '}'
         string += '}'
         return string
+    
+    def latex_str(self):
+        string = r'$'
+        first = True
+        for el in self.elements:
+            for i, p in enumerate(self.elements[el]):
+                if first:
+                    first = False
+                else:
+                    string += ' + '
+
+                if self.elements[el][p] != 1.0:
+                    string += str(self.elements[el][p]) 
+                
+                string += el.latex_str(p)
+        string += '$'
+        return string
+
 
     def dot(self, other):
         dot = 0.0
