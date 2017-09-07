@@ -223,7 +223,24 @@ class H1UISin(H1UIElement):
         #result = ln * lc * rn * rc * math.sqrt(2) * s * np.sin(m * math.pi * a)
         pn = (-1)**m
         result = ln * lc * rn * rc * 3 * ((a - 1) * pn - np.sin(m * math.pi * a) / (m * math.pi) ) / (m * math.pi)
+        
+        return result.sum()
+    
+    def _hat_dot(self, left, left_params, right_params):
+        # hat params
+        ln = left._normaliser(left_params)[:, np.newaxis]
+        l, ml, m, mm, h, mh, lc = left._make_params(left_params, newaxis=True)
 
+        # sin params
+        n = right_params.keys_array()
+        rc = right_params.values_array()
+        rn = self._normaliser(right_params)
+    
+        pn = (-1)**n
+        result = ln * lc * rn * rc * 3 * (ml * ((l - 1) * pn - np.sin(n * math.pi * l) / (n * math.pi))  \
+                + mm * ((m - 1) * pn - np.sin(n * math.pi * m) / (n * math.pi) ) 
+                + mh * ((h - 1) * pn - np.sin(n * math.pi * h) / (n * math.pi) )) / (n * math.pi)
+        result[(l >= 1.0) | (m >= 1.0) | (h >= 1.0)] = 0.0
         return result.sum()
 
     def _normaliser(self, params):
@@ -260,6 +277,8 @@ class H1UIDelta(H1UIElement):
     def _avg_dot(self, left, left_params, right_params):
         return left._delta_dot(self, right_params, left_params)
     def _affine_dot(self, left, left_params, right_params):
+        return left._delta_dot(self, right_params, left_params)
+    def _hat_dot(self, left, left_params, right_params):
         return left._delta_dot(self, right_params, left_params)
 
     def _normaliser(self, params):
@@ -359,8 +378,28 @@ class H1UIAvg(H1UIElement):
         Ida = d < a 
         
         result = ln * lc * rn * rc * 0.5 * (0.5 * (b*b - a*a) * (1-d)**3 - Idb * 0.25 * (b-d)**4 + Ida * 0.25 * (a-d)**4) / (b - a)
-        #((1-d)**3 * (b - a) - Idb * (b-d)**3 + Ida * (a-d)**3)
         return np.nan_to_num(result).sum()
+
+    def _hat_dot(self, left, left_params, right_params):
+        # affine params
+        ln = left._normaliser(right_params)[:,np.newaxis]
+        l, ml, m, mm, h, mh, lc = left._make_params(left_params, newaxis=True)
+        
+        # avg params
+        a = right_params.keys_array()[:, 0]
+        b = right_params.keys_array()[:, 1]
+        rc = right_params.values_array()
+        rn = self._normaliser(right_params)
+        
+        #result = ln * lc * rn * rc * 0.5 * s * ((1-d)**3 * (b - a) - Idb * (b-d)**3 + Ida * (a-d)**3)
+        #result = ln * lc * rn * rc * 0.5 * s * ((1-d)**3 * (b - a) - Idb * (b-d)**3 + Ida * (a-d)**3)
+        result = ln * lc * rn * rc * (ml * self._inner_aff_avg(a, b, l) \
+                                     + mm * self._inner_aff_avg(a, b, m) \
+                                     + mh * self._inner_aff_avg(a, b, h))
+        return np.nan_to_num(result).sum()
+    
+    def _inner_aff_avg(self, a, b, d):
+        return 0.5 * (0.5 * (b*b - a*a) * (1-d)**3 - (d < b) * 0.25 * (b-d)**4 + (d < a) * 0.25 * (a-d)**4) / (b - a)
 
     def _normaliser(self, params):
         p = params.keys_array()
@@ -388,7 +427,7 @@ class H1UIAffine(H1UIElement):
     
     def _affine_dot(self, left, left_params, right_params):
         return self._self_dot(left_params, right_params)
-
+    
     def _self_dot(self, left_params, right_params):
         # The algorithm is ordered, so we must order it
         a = left_params.keys_array()[:,np.newaxis]
@@ -424,7 +463,7 @@ class H1UIAffine(H1UIElement):
         rn = self._normaliser(right_params)
 
         #result = ln * lc * rn * rc * math.sqrt(2) * s * np.sin(m * math.pi * a)
-
+        
         pn = (-1)**m
         result = ln * lc * rn * rc * 3 * ((a - 1) * pn - np.sin(m * math.pi * a) / (m * math.pi) ) / (m * math.pi)
         return np.nan_to_num(result).sum()
@@ -448,10 +487,28 @@ class H1UIAffine(H1UIElement):
         result = ln * lc * rn * rc * 0.5 * (0.5 * (b*b - a*a) * (1-d)**3 - Idb * 0.25 * (b-d)**4 + Ida * 0.25 * (a-d)**4) / (b - a)
         return np.nan_to_num(result).sum()
 
+    def _hat_dot(self, left, left_params, right_params):
+        # hat params
+        ln = left._normaliser(left_params)[:,np.newaxis]
+        l, ml, m, mm, h, mh, lc = left._make_params(left_params, newaxis=True)
+
+        # affine params
+        a = left_params.keys_array()[:,np.newaxis]
+        rc = left_params.values_array()[:,np.newaxis]
+        rn = left._normaliser(left_params)[:,np.newaxis]
+ 
+        # Requires checking the order....
+        d = ml * (self._aff_ordered_dot(l, a) * (l <= a) + self.aff_ordered_dot(a, l) * (a < l))
+        d += mm * (self._aff_ordered_dot(m, a) * (m <= a) + self.aff_ordered_dot(a, m) * (a < m))
+        d += mh * (self._aff_ordered_dot(h, a) * (h <= a) + self.aff_ordered_dot(a, h) * (a < h))
+        
+        return (ln * lc * rn * rc * d).sum()
+
     def _normaliser(self, params):
         p = params.keys_array()
         result = 1.0 / np.sqrt(self._aff_ordered_dot(p, p))
-        return np.nan_to_num(result)
+        result[p >= 1.0] = 0.0
+        return result
 
     def latex_str(self, params):
         return r'U(x - {{{0}}}) (x - {{{0}}})'.format(params[0])
@@ -463,76 +520,132 @@ class H1UIHat(H1UIElement):
         super().__init__()
         self.f = H1UIAffine()
  
-    def old_evaluate(self, params, x):
+    def _old_evaluate(self, params, x):
         d1, d2, d3 = self._make_dicts(params)
         return self._normaliser(params) * (self.f.evaluate(d1, x) + self.f.evaluate(d2, x) + self.f.evaluate(d3, x))
  
     def evaluate(self, params, x):
-        low, m_low, mid, m_mid, hi, m_hi, c = self._make_params(params)
-        return c * self._normaliser(params) * (m_low*self._inner_evaluate(low, x) + m_mid*self._inner_evaluate(mid, x) + m_hi*self._inner_evaluate(hi, x))
+        l, ml, m, mm, h, mh, c = self._make_params(params)
+        return c * self._normaliser(params) * (ml*self._inner_evaluate(l, x) + mm*self._inner_evaluate(m, x) + mh*self._inner_evaluate(h, x))
 
     def _inner_evaluate(self, a, x):
         hi = x[:,np.newaxis] > a #np.less.outer(x, a)
         return 0.5 * (x[:,np.newaxis] * (1.0 - a)**3 - hi * (x[:,np.newaxis] - a)**3)
 
-    def dot(self, right, left_params, right_params):
-        d1, d2, d3 = self._make_dicts(left_params)
-        return right._affine_dot(self.f, d1, right_params) + right._affine_dot(self.f, d2, right_params) \
-               + right._affine_dot(self.f, d3, right_params)
-
-    def _affine_dot(self, left, left_params, right_params):
-        d1, d2, d3 = self._make_dicts(right_params)
-        return self.f._affine_dot(left, left_params, d1) + self.f._affine_dot(left, left_params, d2) \
-               + self.f._affine_dot(left, left_params, d3)
- 
-    def _sin_dot(self, left, left_params, right_params):
-        d1, d2, d3 = self._make_dicts(right_params)
-        return self.f._sin_dot(left, left_params, d1) + self.f._sin_dot(left, left_params, d2) \
-               + self.f._sin_dot(left, left_params, d3)
- 
-    def _avg_dot(self, left, left_params, right_params):
-        d1, d2, d3 = self._make_dicts(right_params)
-        return self.f._avg_dot(left, left_params, d1) + self.f._avg_dot(left, left_params, d2) \
-               + self.f._avg_dot(left, left_params, d3)
- 
-    def _make_dicts(self, params):
-        a = params.keys_array()[:,0]
-        b = params.keys_array()[:,1]
-        c = params.values_array()
-
-        m = 4 / ((b - a) * (b - a))
- 
-        # Argh have to make new dicts
-        d1 = AlgebraDict(float, zip(a, c * m))
-        d2 = AlgebraDict(float, zip(0.5*(a+b), -2*c * m))
-        d3 = AlgebraDict(float, zip(b, c * m))
-
-        return d1, d2, d3
-
-    def _make_params(self, params):
-        a = params.keys_array()[:,0]
-        b = params.keys_array()[:,1]
-        c = params.values_array()
-
-        m = 4 / ((b - a) * (b - a))
-        
-        return a, m, 0.5*(a+b), -2*m, b, m, c
-
     def _aff_ordered_dot(self, a, b):
         # This routine assumes a <= b. Also assumes that, if a and b are vectors, that a is a row vector, i.e.
         # that we have done the a[:, np.newaxis] step
-        d = 0.25 * (9*(0.20 * (1-b**5) - 0.5 * (a + b) * (1 - b**4) + (a*a + 4*a*b + b*b) * (1-b**3) / 3 \
+        return 0.25 * (9*(0.20 * (1-b**5) - 0.5 * (a + b) * (1 - b**4) + (a*a + 4*a*b + b*b) * (1-b**3) / 3 \
                     - a * b * (a + b) * (1 - b*b) + a * a * b * b * (1 - b)) - (1-a)**3 * (1-b)**3)
 
+    def dot(self, right, left_params, right_params):
+        return right._hat_dot(self, left_params, right_params)
+    
+    def _hat_dot(self, left, left_params, right_params):
+        # affine params
+        ln = self._normaliser(left_params)[:, np.newaxis]
+        l1, ml1, m1, mm1, h1, mh1, lc = self._make_params(left_params, newaxis=True)
+
+        # affine params
+        rn = self._normaliser(right_params)
+        l2, ml2, m2, mm2, h2, mh2, rc = self._make_params(right_params)
+        
+        # Requires checking the order....
+        d = ml1 * ml2 * (self._aff_ordered_dot(l1, l2) * (l1 <= l2) + self._aff_ordered_dot(l2, l1) * (l2 < l1))
+        d += ml1 * mm2 * (self._aff_ordered_dot(l1, m2) * (l1 <= m2) + self._aff_ordered_dot(m2, l1) * (m2 < l1)) 
+        d += ml1 * mh2 * (self._aff_ordered_dot(l1, h2) * (l1 <= h2) + self._aff_ordered_dot(h2, l1) * (h2 < l1))
+        d += mm1 * ml2 * (self._aff_ordered_dot(m1, l2) * (m1 <= l2) + self._aff_ordered_dot(l2, m1) * (l2 < m1))
+        d += mm1 * mm2 * (self._aff_ordered_dot(m1, m2) * (m1 <= m2) + self._aff_ordered_dot(m2, m1) * (m2 < m1))
+        d += mm1 * mh2 * (self._aff_ordered_dot(m1, h2) * (m1 <= h2) + self._aff_ordered_dot(h2, m1) * (h2 < m1))
+        d += mh1 * ml2 * (self._aff_ordered_dot(h1, l2) * (h1 <= l2) + self._aff_ordered_dot(l2, h1) * (l2 < h1))
+        d += mh1 * mm2 * (self._aff_ordered_dot(h1, m2) * (h1 <= m2) + self._aff_ordered_dot(m2, h1) * (m2 < h1))
+        d += mh1 * mh2 * (self._aff_ordered_dot(h1, h2) * (h1 <= h2) + self._aff_ordered_dot(h2, h1) * (h2 < h1))
+        
+        return (ln * lc * rn * rc * d).sum()
+
+    def _affine_dot(self, left, left_params, right_params):
+        # affine params
+        a = left_params.keys_array()[:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
+
+        # hat params
+        rn = self._normaliser(right_params)
+        l, ml, m, mm, h, mh, rc = self._make_params(right_params)
+        
+        # Requires checking the order....
+        d = ml * (self._aff_ordered_dot(l, a) * (l <= a) + self._aff_ordered_dot(a, l) * (a < l))
+        d += mm * (self._aff_ordered_dot(m, a) * (m <= a) + self._aff_ordered_dot(a, m) * (a < m))
+        d += mh * (self._aff_ordered_dot(h, a) * (h <= a) + self._aff_ordered_dot(a, h) * (a < h))
+        
+        return (ln * lc * rn * rc * d).sum()
+
+    def _sin_dot(self, left, left_params, right_params):
+        # sin params
+        n = left_params.keys_array()[:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
+        
+        # affine params
+        rn = self._normaliser(right_params)
+        l, ml, m, mm, h, mh, rc = self._make_params(right_params)
+        
+        pn = (-1)**n
+        result = ln * lc * rn * rc * 3 * (ml * ((l - 1) * pn - np.sin(n * math.pi * l) / (n * math.pi))  \
+                + mm * ((m - 1) * pn - np.sin(n * math.pi * m) / (n * math.pi) ) \
+                + mh * ((h - 1) * pn - np.sin(n * math.pi * h) / (n * math.pi) )) / (n * math.pi)
+        result[(l >= 1.0) | (m >= 1.0) | (h >= 1.0)] = 0.0
+        return result
+
+    def _avg_dot(self, left, left_params, right_params):
+        # avg params
+        a = left_params.keys_array()[:, 0][:,np.newaxis]
+        b = left_params.keys_array()[:, 1][:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
+        
+        # affine params
+        rn = self._normaliser(right_params)
+        l, ml, m, mm, h, mh, rc = self._make_params(right_params)
+
+        #result = ln * lc * rn * rc * 0.5 * s * ((1-d)**3 * (b - a) - Idb * (b-d)**3 + Ida * (a-d)**3)
+        result = ln * lc * rn * rc * (ml * self._inner_aff_avg(a, b, l) \
+                                     + mm * self._inner_aff_avg(a, b, m) \
+                                     + mh * self._inner_aff_avg(a, b, h))
+        return np.nan_to_num(result).sum()
+    
+    def _inner_aff_avg(self, a, b, d):
+        return 0.5 * (0.5 * (b*b - a*a) * (1-d)**3 - (d < b) * 0.25 * (b-d)**4 + (d < a) * 0.25 * (a-d)**4) / (b - a)
+
+    def _make_dicts(self, params):
+        l, ml, m, mm, h, mh, c = self._make_params(params)
+
+        # Argh have to make new dicts
+        d1 = AlgebraDict(float, zip(l, c * ml))
+        d2 = AlgebraDict(float, zip(m, c * mm))
+        d3 = AlgebraDict(float, zip(h, c * mh))
+
+        return d1, d2, d3
+
+    def _make_params(self, params, newaxis=False):
+        a = params.keys_array()[:,0]
+        b = params.keys_array()[:,1]
+        c = params.values_array()
+
+        m = 4 / ((b - a) * (b - a))
+
+        if newaxis:
+            return a[:,np.newaxis], m[:,np.newaxis], (0.5*(a+b))[:,np.newaxis], (-2*m)[:,np.newaxis], \
+                    b[:,np.newaxis], m[:,np.newaxis], c[:,np.newaxis]
+        return a, m, 0.5*(a+b), -2*m, b, m, c
+
     def _normaliser(self, params):
-        d1, d2, d3 = self._make_dicts(params)
         l, ml, m, mm, h, mh, c = self._make_params(params)
 
         # p is assumed to be an array of size n*2
-        #return 1.0 / np.sqrt(self.f._self_dot(d1, d1) + self.f._self_dot(d2, d2) + self.f._self_dot(d3, d3) \
-        #        + 2 * self.f._self_dot(d1, d2) + 2 * self.f._self_dot(d1, d3) + 2 * self.f._self_dot(d2, d3))
-        return 1.0 / np.sqrt(ml * ml * self._aff_ordered_dot(l,l) + mm * mm * self._aff_ordered_dot(m, m) + mh * mh * self._aff_ordered_dot(h, h) \
+        n2 =  1.0 / np.sqrt(ml * ml * self._aff_ordered_dot(l,l) + mm * mm * self._aff_ordered_dot(m, m) + mh * mh * self._aff_ordered_dot(h, h) \
                 + ml * mm * self._aff_ordered_dot(l, m) + ml * mh * self._aff_ordered_dot(l, h) + mm * mh * self._aff_ordered_dot(m, h))
+        return n2
 
     def latex_str(self, params):
         return r'\mathrm{hat}_{{{{0}}},{{{1}}}}(x)'.format(params[0], params[1])
