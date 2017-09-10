@@ -12,12 +12,12 @@ importlib.reload(pat)
 
 beta_star = 0.5
 
-N = 1e2
+N = 1e4
 dictionary = pat.make_unif_dictionary(N)
 
 np.random.seed(3)
 
-ns = range(40,51,2)
+ns = range(40,201,2)
 
 ms_comp = np.zeros(len(ns))
 ms_wcomp = np.zeros(len(ns))
