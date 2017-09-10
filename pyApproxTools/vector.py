@@ -374,15 +374,12 @@ class H1UIAvg(H1UIElement):
         rc = right_params.values_array()
         rn = self._normaliser(right_params)
 
-        Idb = d < b
-        Ida = d < a 
-        
-        result = ln * lc * rn * rc * 0.5 * (0.5 * (b*b - a*a) * (1-d)**3 - Idb * 0.25 * (b-d)**4 + Ida * 0.25 * (a-d)**4) / (b - a)
+        result = ln * lc * rn * rc * self._inner_aff_avg(a, b, d)
         return np.nan_to_num(result).sum()
 
     def _hat_dot(self, left, left_params, right_params):
         # affine params
-        ln = left._normaliser(right_params)[:,np.newaxis]
+        ln = left._normaliser(left_params)[:,np.newaxis]
         l, ml, m, mm, h, mh, lc = left._make_params(left_params, newaxis=True)
         
         # avg params
@@ -391,15 +388,15 @@ class H1UIAvg(H1UIElement):
         rc = right_params.values_array()
         rn = self._normaliser(right_params)
         
-        #result = ln * lc * rn * rc * 0.5 * s * ((1-d)**3 * (b - a) - Idb * (b-d)**3 + Ida * (a-d)**3)
-        #result = ln * lc * rn * rc * 0.5 * s * ((1-d)**3 * (b - a) - Idb * (b-d)**3 + Ida * (a-d)**3)
-        result = ln * lc * rn * rc * (ml * self._inner_aff_avg(a, b, l) \
+        return ln * lc * rn * rc * (ml * self._inner_aff_avg(a, b, l) \
                                      + mm * self._inner_aff_avg(a, b, m) \
                                      + mh * self._inner_aff_avg(a, b, h))
-        return np.nan_to_num(result).sum()
+        #return np.nan_to_num(result).sum()
     
     def _inner_aff_avg(self, a, b, d):
-        return 0.5 * (0.5 * (b*b - a*a) * (1-d)**3 - (d < b) * 0.25 * (b-d)**4 + (d < a) * 0.25 * (a-d)**4) / (b - a)
+        result = 0.5 * (0.5 * (b*b - a*a) * (1-d)**3 - (d < b) * 0.25 * (b-d)**4 + (d < a) * 0.25 * (a-d)**4) / (b - a)
+        result[(d >= 1.0)] = 0.0
+        return result
 
     def _normaliser(self, params):
         p = params.keys_array()
@@ -648,8 +645,7 @@ class H1UIHat(H1UIElement):
         return n2
 
     def latex_str(self, params):
-        return r'\mathrm{hat}_{{{{0}}},{{{1}}}}(x)'.format(params[0], params[1])
-
+        return r'\mathrm{Hat}_{' + '{0},{1}'.format(params[0], params[1]) + '}(x)'
 class H1UIPoly(H1UIElement):
     pass
 
