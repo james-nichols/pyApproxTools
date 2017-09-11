@@ -25,7 +25,7 @@ from pyApproxTools.pw_vector import *
 from pyApproxTools.pw_basis import *
 from pyApproxTools.point_generator import *
 
-__all__ = ['DyadicFEMSolver','make_pw_hat_basis','make_pw_sin_basis','make_pw_reduced_basis','make_pw_random_local_integration_basis','make_local_integration_basis']
+__all__ = ['DyadicFEMSolver','make_pw_hat_basis','make_pw_hat_dict','make_pw_sin_basis','make_pw_reduced_basis','make_pw_random_local_integration_basis','make_local_integration_basis']
 
 class DyadicFEMSolver(object):
     """ Solves the -div( a nabla u ) = f PDE on a grid, with a given by 
@@ -108,6 +108,21 @@ def make_pw_hat_basis(div):
     b.G = grammian
     
     return b
+
+def make_pw_hat_dict(div, width=1):
+    # Makes a complete hat basis for division div
+    Vn = []
+    # n is the number of internal grid points, i.e. we will have n different hat functionsdd
+    # for our coarse-grid basis
+    side_n = 2**div
+    
+    for k in range(1,side_n,width):
+        for l in range(1,side_n,width):
+            v = PWLinearSqDyadicH1(div=div)
+            v.values[k:k+width, l:l+width] = 1.0
+            Vn.append(v)
+    
+    return Vn
 
 def make_pw_sin_basis(div, N=None):
     Vn = []
