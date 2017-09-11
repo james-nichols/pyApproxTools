@@ -78,17 +78,12 @@ coarse grid hat functions, etc...
 
 def make_pw_hat_basis(div):
     # Makes a complete hat basis for division div
-    Vn = []
+    
     # n is the number of internal grid points, i.e. we will have n different hat functionsdd
     # for our coarse-grid basis
     side_n = 2**div-1
 
-    for k in range(side_n):
-        for l in range(side_n):
-            v = PWLinearSqDyadicH1(div=div)
-            v.values[k+1, l+1] = 1.0
-            Vn.append(v)
-    
+    Vn = make_pw_hat_dict(div) 
     b = PWBasis(Vn, space='H1')
 
     h = 2 ** (-b.vecs[0].div)
