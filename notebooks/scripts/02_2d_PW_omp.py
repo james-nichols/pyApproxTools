@@ -26,8 +26,8 @@ Vn = Vn.orthonormalise()
 Wms_c = []
 Wms_wc = []
 
-bs_comp = np.zeros((len(widths), m))
-bs_wcomp = np.zeros((len(widths), m))
+bs_c = np.zeros((len(widths), m))
+bs_wc = np.zeros((len(widths), m))
 
 for j, width in enumerate(widths):
 
