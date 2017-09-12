@@ -12,7 +12,7 @@ importlib.reload(pat)
 
 beta_star = 0.5
 
-N = 1e4
+N = 1e3
 dictionary = pat.make_unif_dictionary(N)
 
 np.random.seed(3)
