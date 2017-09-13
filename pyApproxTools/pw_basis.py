@@ -88,7 +88,7 @@ class PWBasis(Basis):
         
         self.vecs = []
         for i in range(self.values_flat.shape[-1]):
-            self.vecs.append(DyadicPWLinear(self.values_flat[:,:,i]))
+            self.vecs.append(PWLinearSqDyadicH1(self.values_flat[:,:,i]))
         
         # TODO: make this a part of the saved file format...
         self.space = 'H1'
