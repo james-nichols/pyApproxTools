@@ -32,20 +32,19 @@ bs_wc = np.zeros((len(widths), m))
 for j, width in enumerate(widths):
 
     print('Construct dictionary of local averages...')
-    spacing = width
     D = pat.make_pw_hat_dict(fem_div, width=width)
 
     print('Greedy basis construction...')
     cbc = pat.CollectiveOMP(m, D, Vn, Wm=pat.PWBasis(), verbose=True)
     Wm_c = cbc.construct_basis()
     Wm_c_o = Wm_c.orthonormalise()
-    Wms_c.append(Wm_c_o)
+    Wms_c.append(Wm_c)
     Wm_c_o.save('Wm_c_{0}'.format(width))
 
     wcbc = pat.WorstCaseOMP(m, D, Vn, Wm=pat.PWBasis(), verbose=True)
     Wm_wc = wcbc.construct_basis()
     Wm_wc_o = Wm_wc.orthonormalise()
-    Wms_wc.append(Wm_wc_o)
+    Wms_wc.append(Wm_wc)
     Wm_wc_o.save('Wm_wc_{0}'.format(width))
 
     # For efficiency it makes sense to compute the basis pair and the associated
