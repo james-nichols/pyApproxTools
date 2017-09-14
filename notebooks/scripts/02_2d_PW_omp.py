@@ -32,7 +32,7 @@ bs_wc = np.zeros((len(widths), m))
 for j, width in enumerate(widths):
 
     print('Construct dictionary of local averages...')
-    D = pat.make_pw_hat_dict(fem_div, width=width)
+    D = pat.make_pw_hat_rep_dict(fem_div, width=width)
 
     print('Greedy basis construction...')
     cbc = pat.CollectiveOMP(m, D, Vn, Wm=pat.PWBasis(), verbose=True)

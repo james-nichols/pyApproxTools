@@ -25,7 +25,9 @@ from pyApproxTools.pw_vector import *
 from pyApproxTools.pw_basis import *
 from pyApproxTools.point_generator import *
 
-__all__ = ['DyadicFEMSolver','make_pw_hat_basis','make_pw_hat_dict','make_pw_sin_basis','make_pw_reduced_basis','make_pw_random_local_integration_basis','make_local_integration_basis']
+__all__ = ['DyadicFEMSolver','make_pw_hat_basis','make_pw_hat_dict','make_pw_hat_rep_dict',\
+           'make_pw_sin_basis','make_pw_reduced_basis','make_pw_random_local_integration_basis',\
+           'make_local_integration_basis']
 
 class DyadicFEMSolver(object):
     """ Solves the -div( a nabla u ) = f PDE on a grid, with a given by 
@@ -66,7 +68,6 @@ class DyadicFEMSolver(object):
         # Pad the zeros on each side... (due to the boundary conditions) and make the 
         # dyadic piecewise linear function object
         self.u.values = np.pad(u, ((1,1),(1,1)), 'constant')
-
 
 
 """
@@ -118,6 +119,39 @@ def make_pw_hat_dict(div, width=1):
             Vn.append(v)
     
     return Vn
+
+def make_pw_hat_rep_dict(div, width=1):
+    side_n = 2**div-1
+
+    hat_b = make_pw_hat_basis(div=div)
+    hat_b.make_grammian()
+
+    # Now we make the representers...
+    D = []
+    for k in range(1,side_n,width):
+        for l in range(1,side_n,width):
+            meas = PWLinearSqDyadicH1(div=div)
+            meas.values[k:k+width, l:l+width] = 1.0
+
+
+    hat_b = make_pw_hat_basis(div=div)
+    hat_b.make_grammian()
+    for i in range(1,2**div - width + 1, width):
+        for j in range(1,2**div - width + 1, width):
+
+            meas = PWLinearSqDyadicH1(div=div)
+            meas.values[i:i+width, j:j+width] = 1.0 
+
+            if scipy.sparse.issparse(hat_b.G):
+                v = scipy.sparse.linalg.spsolve(hat_b.G, meas.values[1:-1,1:-1].flatten())
+            else:
+                v = scipy.linalg.solve(hat_b.G, meas.values[1:-1,1:-1].flatten(), sym_pos=True)
+            # Instead of the reconstruction (the proper way) we can just do a reshape as we have a hat basis...
+            #meas = hat_b.reconstruct(v)
+            d = PWLinearSqDyadicH1(np.pad(v.reshape((2**div-1, 2**div-1)), ((1,1),(1,1)), 'constant'))
+            D.append(d)
+
+    return D
 
 def make_pw_sin_basis(div, N=None):
     Vn = []
