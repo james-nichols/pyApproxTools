@@ -18,7 +18,7 @@ except IndexError:
     print("Usage: " + sys.argv[0] + " n_min n_max n_step")
     sys.exit(1)
 
-ns = range(n_min,n_max+1,n_step)
+ns = range(n_min,n_max,n_step)
 print(ns)
 beta_star = 0.5
 
