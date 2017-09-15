@@ -10,6 +10,16 @@ sys.path.append("../../")
 import pyApproxTools as pat
 importlib.reload(pat)
 
+try:
+    n_min = int(sys.argv[1])
+    n_max = int(sys.argv[2])
+    n_step = int(sys.argv[3])
+except IndexError:
+    print("Usage: " + sys.argv[0] + " n_min n_max n_step")
+    sys.exit(1)
+
+ns = range(n_min,n_max+1,n_step)
+print(ns)
 beta_star = 0.5
 
 N = 1e3
@@ -17,10 +27,8 @@ dictionary = pat.make_unif_dictionary(N)
 
 np.random.seed(3)
 
-ns = range(40,201,2)
-
-ms_comp = np.zeros(len(ns))
-ms_wcomp = np.zeros(len(ns))
+ms_comp = np.zeros((2,len(ns)), dtype=np.int16)
+ms_wcomp = np.zeros((2,len(ns)), dtype=np.int16)
 
 Vn = pat.make_sin_basis(ns[-1])
 
@@ -42,15 +50,17 @@ for j, n in enumerate(ns):
     for i in range(n, m):
         BP_comp = BP_comp_l.subspace(Wm_indices=slice(0,i))
         if BP_comp.beta() > beta_star:
-            ms_comp[j] = i #BP_comp.beta()
+            ms_comp[j,0] = n #BP_comp.beta()
+            ms_comp[j,1] = i #BP_comp.beta()
             break
 
     for i in range(n, m):
         BP_wcomp =  BP_wcomp_l.subspace(Wm_indices=slice(0,i))
         if BP_wcomp.beta() > beta_star:
-            ms_wcomp[j] = i #BP_wcomp.beta()
+            ms_wcomp[j,0] = n #BP_wcomp.beta()
+            ms_wcomp[j,1] = i #BP_wcomp.beta()
             break
 
-np.savetxt('comp_sin_m_star', BP_comp)
-np.savetxt('wcomp_sin_m_star', BP_wcomp)
+np.savetxt('comp_sin_m_star.csv', ms_comp, fmt='%i')
+np.savetxt('wcomp_sin_m_star.csv', ms_wcomp, fmt='%i')
 
