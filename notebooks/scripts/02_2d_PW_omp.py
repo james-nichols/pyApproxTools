@@ -10,6 +10,8 @@ sys.path.append("../../")
 import pyApproxTools as pat
 importlib.reload(pat)
 
+np.random.seed(3)
+
 fem_div = 7
 field_div = 2
 
