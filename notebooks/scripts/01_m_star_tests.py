@@ -27,8 +27,8 @@ dictionary = pat.make_unif_dictionary(N)
 
 np.random.seed(3)
 
-ms_comp = np.zeros((2,len(ns)), dtype=np.int16)
-ms_wcomp = np.zeros((2,len(ns)), dtype=np.int16)
+ms_comp = np.zeros((len(ns),2), dtype=np.int16)
+ms_wcomp = np.zeros((len(ns),2), dtype=np.int16)
 
 Vn = pat.make_sin_basis(ns[-1])
 
