@@ -149,6 +149,7 @@ def make_pw_hat_rep_dict(div, width=1):
             # Instead of the reconstruction (the proper way) we can just do a reshape as we have a hat basis...
             #meas = hat_b.reconstruct(v)
             d = PWLinearSqDyadicH1(np.pad(v.reshape((2**div-1, 2**div-1)), ((1,1),(1,1)), 'constant'))
+            d /= d.norm()
             D.append(d)
 
     return D
