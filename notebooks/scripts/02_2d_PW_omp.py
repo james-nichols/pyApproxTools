@@ -20,7 +20,7 @@ widths = [2**i for i in range(fem_div-3)]
 print(widths)
 
 # Create Vn - an orthonormalised reduced basis
-Vn, fields = pat.make_pw_reduced_basis(n, field_div=2, fem_div=fem_div)
+Vn, fields = pat.make_pw_reduced_basis(n, field_div=field_div, fem_div=fem_div)
 Vn = Vn.orthonormalise()
 
 Wms_c = []
