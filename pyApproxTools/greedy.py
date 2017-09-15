@@ -56,7 +56,7 @@ class CollectiveOMP(object):
     def next_step_choice(self, i):
         """ Different greedy methods will have their own maximising/minimising criteria, so all 
         inheritors of this class are expected to overwrite this method to suit their needs. """
-        
+ 
         next_crit = np.zeros(len(self.dictionary))
         # We go through the dictionary and find the max of || f ||^2 - || P_Vn f ||^2
         for phi in self.Vn.vecs:
@@ -68,7 +68,7 @@ class CollectiveOMP(object):
         ni = np.argmax(next_crit)
         
         if self.verbose:
-            print('{0} : \t {1}'.format(i, next_crit[ni]))
+            print('{0} : \t {1} \t {2}'.format(i, ni, next_crit[ni]))
 
         return ni, next_crit[ni]
 
@@ -89,7 +89,6 @@ class CollectiveOMP(object):
         for i in range(1, self.m):
             
             ni, self.sel_crit[i] = self.next_step_choice(i)
-               
             self.Wm.add_vector(self.dictionary[ni], incr_ortho=True)
 
             if self.remove:
@@ -146,7 +145,7 @@ class WorstCaseOMP(CollectiveOMP):
         self.Vtilde.append(v)
 
         if self.verbose:
-            print('{0} : \t {1}'.format(i, next_crit[ni]))
+            print('{0} : \t {1} \t {2}'.format(i, ni, next_crit[ni]))
 
         return ni, next_crit[ni]
 
