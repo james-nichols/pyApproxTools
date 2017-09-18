@@ -16,7 +16,7 @@ fem_div = 7
 field_div = 2
 
 n = 20
-m = 100
+m = 200
 
 widths = [2**i for i in range(fem_div-3)]
 print(widths)
