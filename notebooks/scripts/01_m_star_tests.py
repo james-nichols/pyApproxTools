@@ -60,7 +60,7 @@ for j, n in enumerate(ns):
             ms_wcomp[j,0] = n #BP_wcomp.beta()
             ms_wcomp[j,1] = i #BP_wcomp.beta()
             break
-
-np.savetxt('comp_sin_m_star.csv', ms_comp, fmt='%i')
-np.savetxt('wcomp_sin_m_star.csv', ms_wcomp, fmt='%i')
-
+with open('comp_sin_m_star.csv','a') as f_handle:
+    np.savetxt(f_handle, ms_comp, fmt='%i')
+with open('wcomp_sin_m_star.csv','a') as f_handle:
+    np.savetxt(f_handle, ms_wcomp, fmt='%i')
