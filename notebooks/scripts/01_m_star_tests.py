@@ -5,7 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pdb
 
-import sys
+import sys, os
 sys.path.append("../../")
 import pyApproxTools as pat
 importlib.reload(pat)
@@ -19,7 +19,6 @@ except IndexError:
     sys.exit(1)
 
 ns = range(n_min,n_max,n_step)
-print(ns)
 beta_star = 0.5
 
 N = 1e3
@@ -60,7 +59,16 @@ for j, n in enumerate(ns):
             ms_wcomp[j,0] = n #BP_wcomp.beta()
             ms_wcomp[j,1] = i #BP_wcomp.beta()
             break
-with open('comp_sin_m_star.csv','a') as f_handle:
-    np.savetxt(f_handle, ms_comp, fmt='%i')
-with open('wcomp_sin_m_star.csv','a') as f_handle:
-    np.savetxt(f_handle, ms_wcomp, fmt='%i')
+
+comp_file = './comp_sin_m_star.csv'
+if os.path.isfile(comp_file):
+    ms_comp_prev = np.loadtxt(comp_file)
+    ms_comp = np.append(ms_comp_prev, ms_comp, axis=0)
+np.savetxt(comp_file, ms_comp, fmt='%i')
+
+wcomp_file = './wcomp_sin_m_star.csv'
+if os.path.isfile(wcomp_file):
+    ms_wcomp_prev = np.loadtxt(wcomp_file)
+    ms_wcomp = np.append(ms_wcomp_prev, ms_wcomp, axis=0)
+np.savetxt(wcomp_file, ms_wcomp, fmt='%i')
+
