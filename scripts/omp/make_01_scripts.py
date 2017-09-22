@@ -24,7 +24,7 @@ for n_b in n_blocks:
     out_file.write('module remove python/2.7.3\n')
     out_file.write('module add python/3.5.2\n')
     out_file.write('\n')
-    out_file.write('cd /home/z3180058/projects/pyApproxTools/notebooks/scripts/\n')
+    out_file.write('cd /home/z3180058/projects/pyApproxTools/scripts/omp\n')
     out_file.write('python3 ./01_m_star_tests.py {0} {1} {2}'.format(n_b, n_b+block_size, n_steps) + '\n')
     out_file.close()
 
