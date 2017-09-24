@@ -23,23 +23,111 @@ from pyApproxTools.pw_basis import *
 
 __all__ = ['CollectiveOMP', 'WorstCaseOMP', 'WorstVecOMP']
 
-class CollectiveOMP(object):
-    """ Probably should rename this class, but it implements the Collective OMP algorithm for constructing Wm """
+class GreedyApprox(object):
 
-    def __init__(self, m, dictionary, Vn, Wm=None, verbose=False, remove=True):
+    def __init__(self, dictionary, Vn, Wm=None, verbose=False, remove=False):
         """ We need to be either given a dictionary or a point generator that produces d-dimensional points
             from which we generate the dictionary. """
         
         self.dictionary = copy.copy(dictionary)
 
-        self.m = m
         self.Vn = Vn
+        self.Vn.make_grammian()
         self.Wm = Wm or Basis()
+        self.Wm.make_grammian()
+        self.m = self.Wm.n
 
+        self.BP = None
+        
         self.verbose = verbose
         self.remove = remove
-        self.sel_crit = np.zeros(m)
+        self.sel_crit = np.zeros(self.m)
 
+    def initial_choice(self):
+        """ Different greedy methods will have their own maximising/minimising criteria, so all 
+        inheritors of this class are expected to overwrite this method to suit their needs. """
+        pass
+
+    def next_step_choice(self, i):
+        """ Different greedy methods will have their own maximising/minimising criteria, so all 
+        inheritors of this class are expected to overwrite this method to suit their needs. """
+        pass
+
+    def construct_to_m(self, m_goal):
+
+        if self.verbose:
+            print('\n\nGenerating basis from greedy algorithm with dictionary: ')
+            print('i \t || P_Vn (w - P_Wm w) ||')
+
+        if self.Wm.n == 0:
+            n0, crit = self.initial_choice()
+
+            self.sel_crit = np.append(self.sel_crit, crit)
+            
+            self.Wm.add_vector(self.dictionary[n0])
+            self.m = self.Wm.n
+    
+        while self.Wm.n < m_goal:
+            
+            ni, crit = self.next_step_choice(self.Wm.n)
+            
+            self.sel_crit = np.append(self.sel_crit, crit)
+
+            self.Wm.add_vector(self.dictionary[ni], incr_ortho=True)
+            self.m = self.Wm.n
+
+            if self.remove:
+                del self.dictionary[ni]
+                   
+        if self.verbose:
+            print('\n\nDone!')
+        
+        return self.Wm
+
+    def construct_to_beta(self, beta_goal, m_max_ratio=10):
+
+        if self.BP is None:
+            self.BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
+        elif self.BP.Wm is not self.Wm.orthonormal_basis or self.BP.Vn is not self.Vn:
+            self.BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
+
+        if self.Wm.n == 0:
+            n0, crit = self.initial_choice()
+
+            self.sel_crit = np.append(self.sel_crit, crit)
+            
+            self.BP.add_Wm_vector(self.dictionary[ni])
+            self.m = self.Wm.n
+    
+        while self.BP.beta() < beta_goal:
+
+            ni, crit = self.next_step_choice(self.Wm.n)
+            
+            self.sel_crit = np.append(self.sel_crit, crit)
+            
+            self.BP.add_Wm_vector(self.dictionary[ni])
+            self.m = self.Wm.n
+
+            if self.remove:
+                del self.dictionary[ni]
+            
+            if self.Wm.n > m_max_ratio * self.Vn.n:
+                print('Ceiling reached for Wm size before beta_goal reached!')
+                break
+
+        if self.verbose:
+            print('\n\nDone!')
+        
+        return self.Wm
+
+class CollectiveOMP(GreedyApprox):
+    """ Probably should rename this class, but it implements the Collective OMP algorithm for constructing Wm """
+
+    def __init__(self, dictionary, Vn, Wm=None, verbose=False, remove=False):
+        """ We need to be either given a dictionary or a point generator that produces d-dimensional points
+            from which we generate the dictionary. """
+        super().__init__(dictionary, Vn, Wm=Wm, verbose=verbose, remove=remove)
+       
     def initial_choice(self):
         """ Different greedy methods will have their own maximising/minimising criteria, so all 
         inheritors of this class are expected to overwrite this method to suit their needs. """
@@ -72,41 +160,13 @@ class CollectiveOMP(object):
 
         return ni, next_crit[ni]
 
-    def construct_basis(self):
-        " The construction method should be generic enough to support all variants of the greedy algorithms """
-        
-        n0, self.sel_crit[0] = self.initial_choice()
-        self.Wm.add_vector(self.dictionary[n0]) 
-        self.Wm.make_grammian()
-
-        if self.remove:
-            del self.dictionary[n0]
-
-        if self.verbose:
-            print('\n\nGenerating basis from greedy algorithm with dictionary: ')
-            print('i \t || P_Vn (w - P_Wm w) ||')
-
-        for i in range(1, self.m):
-            
-            ni, self.sel_crit[i] = self.next_step_choice(i)
-            self.Wm.add_vector(self.dictionary[ni], incr_ortho=True)
-
-            if self.remove:
-                del self.dictionary[ni]
-                   
-        if self.verbose:
-            print('\n\nDone!')
-        
-        return self.Wm
-
-
-class WorstCaseOMP(CollectiveOMP):
+class WorstCaseOMP(GreedyApprox):
     """ Now the slightly simpler (to analyse) parallel OMP that looks at Vn vecs individually """
 
-    def __init__(self, m, dictionary, Vn, Wm=None, verbose=False, remove=True):
+    def __init__(self, dictionary, Vn, Wm=None, verbose=False, remove=False):
         """ We need to be either given a dictionary or a point generator that produces d-dimensional points
             from which we generate the dictionary. """
-        super().__init__(m, dictionary, Vn, Wm=Wm, verbose=verbose, remove=remove)
+        super().__init__(dictionary, Vn, Wm=Wm, verbose=verbose, remove=remove)
             
         self.BP = None
         self.Vtilde = []
