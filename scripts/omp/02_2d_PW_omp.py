@@ -59,8 +59,8 @@ for i in range(n, m):
     BP_c =  BP_c_l.subspace(Wm_indices=slice(0,i))
     BP_wc =  BP_wc_l.subspace(Wm_indices=slice(0,i))
 
-    bs_c[j, i] = BP_c.beta()
-    bs_wc[j, i] = BP_wc.beta()
+    bs_c[i] = BP_c.beta()
+    bs_wc[i] = BP_wc.beta()
 
 np.save('bs_c_{0}'.format(width), bs_c)
 np.save('bs_wc_{0}'.format(width), bs_wc)
