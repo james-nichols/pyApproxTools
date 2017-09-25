@@ -646,6 +646,7 @@ class H1UIHat(H1UIElement):
 
     def latex_str(self, params):
         return r'\mathrm{Hat}_{' + '{0},{1}'.format(params[0], params[1]) + '}(x)'
+
 class H1UIPoly(H1UIElement):
     pass
 
@@ -721,7 +722,13 @@ class FuncVector(Vector):
         string += '$'
         return string
 
-
+    def names_array(self):
+        return [str(el) for el in self.elements]
+    def params_array(self, index):
+        return self.elements.values_array()[index].keys_array()
+    def coeffs_array(self, inded):
+        return self.elements.values_array()[index].values_array()
+    
     def dot(self, other):
         dot = 0.0
         for l in self.elements:
