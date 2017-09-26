@@ -44,7 +44,7 @@ ms_wcomp[0,1] = wcgbc.m
 for j, n in enumerate(ns[1:]):
     
     cgbc.Vn = Vn.subspace(slice(0,n))
-    Wm_comp = gbc.construct_to_beta(beta_star)
+    Wm_comp = cgbc.construct_to_beta(beta_star)
     ms_comp[j,0] = ns[0]
     ms_comp[j,1] = cgbc.m
     
