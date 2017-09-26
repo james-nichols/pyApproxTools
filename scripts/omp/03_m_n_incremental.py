@@ -31,12 +31,12 @@ ms_wcomp = np.zeros((len(ns),2), dtype=np.int16)
 
 Vn = pat.make_sin_basis(ns[-1])
 
-cgbc = pat.CollectiveOMP(m, dictionary, Vn.subspace(slice(0,ns[0])), verbose=True)
+cgbc = pat.CollectiveOMP(dictionary, Vn.subspace(slice(0,ns[0])), verbose=True)
 Wm_comp = cgbc.construct_to_beta(beta_star)
 ms_comp[0,0] = ns[0]
 ms_comp[0,1] = cgbc.m
 
-wcgbc = pat.WorstCaseOMP(m, dictionary, Vn.subspace(slice(0,ns[0])), verbose=True)
+wcgbc = pat.WorstCaseOMP(dictionary, Vn.subspace(slice(0,ns[0])), verbose=True)
 Wm_wcomp = wcgbc.construct_to_beta(beta_star)
 ms_wcomp[0,0] = ns[0]
 ms_wcomp[0,1] = wcgbc.m
