@@ -43,15 +43,15 @@ class PWBasis(Basis):
         elif file_name is not None:
             self.load(file_name)
     
-    def add_vector(self, vec, incr_ortho=True, check_ortho=True):
+    def add_vector(self, vec, incr_ortho=False, check_ortho=True):
         """ Add just one vector, so as to make the new Grammian calculation quick """
         super().add_vector(vec, incr_ortho=incr_ortho, check_ortho=check_ortho)
 
         if self.values_flat is not None:
             self.values_flat = np.pad(self.values_flat, ((0,0),(0,0),(0,self.n-self.values_flat.shape[2])), 'constant')
-            self.values_flat[:,:,self.n-1] = vec.values
+            self.values_flat[:,:,self.n-1] = self.vecs[-1].values
         else:
-            self.values_flat = vec.values[:,:,np.newaxis]
+            self.values_flat = self.vecs[-1].values[:,:,np.newaxis]
 
 
     def subspace(self, indices):

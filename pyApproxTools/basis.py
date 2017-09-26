@@ -13,8 +13,10 @@ import math
 import numpy as np
 import scipy as sp
 import scipy.sparse 
-import scipy.linalg 
+import scipy.linalg
+import copy
 from pyApproxTools.vector import *
+
 
 import pdb
 
@@ -52,9 +54,10 @@ class Basis(object):
         self.L_inv = None
         self.U = self.S = self.V = None
 
-    def add_vector(self, vec, incr_ortho=True, check_ortho=True):
+    def add_vector(self, vec, incr_ortho=False, check_ortho=True):
         """ Add just one vector, so as to make the new Grammian calculation quick """
-
+        
+        vec = copy.deepcopy(vec)
         if self.is_orthonormal:    
             """ add a vector - if it is orthonormal already just add it, other wise do one gram-schmidt step """
             v_dot = np.zeros(self.n)
@@ -65,7 +68,7 @@ class Basis(object):
             if any(np.abs(v_dot) > 1e-13):
                 # We do a Gram-Schmidt style removal
                 for i, v in enumerate(self.vecs):
-                    vec -= v_dot[i] * v
+                    vec = vec - v_dot[i] * v
                 n = vec.norm()
                 if n < 1e-13:
                     raise Exception('Error - tried adding linearly dependent vector to ortho basis')
@@ -216,7 +219,10 @@ class Basis(object):
         return type(self)(vecs, space=self.space, is_orthonormal=True)
 
     def orthonormalise(self):
-    
+
+        if self.n == 0:
+            return self
+
         if self.orthonormal_basis is None or self.orthonormal_basis.n != self.n:
             if self.G is None:
                 self.make_grammian()
@@ -272,10 +278,10 @@ class BasisPair(object):
         self.n += 1
 
         if self.CG is not None:
-            self.CG = np.pad(self.CG, ((0,1),(0,0)), 'constant')
+            self.CG = np.pad(self.CG, ((0,0),(0,1)), 'constant')
 
             for i in range(self.m):
-                self.CG[i, self.n-1] = self.Wm.vecs[i].dot(v)
+                self.CG[i, self.n-1] = self.Wm.vecs[i].dot(self.Vn.vecs[-1])
 
         self.U = self.V = self.S = None
 
@@ -284,10 +290,9 @@ class BasisPair(object):
         self.m += 1
 
         if self.CG is not None:
-            self.CG = np.pad(self.CG, ((0,0),(0,1)), 'constant')
-
-            for i in range(self.m):
-                self.CG[self.m-1, i] = self.Vn.vecs[i].dot(w)
+            self.CG = np.pad(self.CG, ((0,1),(0,0)), 'constant')
+            for i in range(self.n):
+                self.CG[self.m-1, i] = self.Vn.vecs[i].dot(self.Wm.vecs[-1])
 
         self.U = self.V = self.S = None
 
@@ -312,6 +317,9 @@ class BasisPair(object):
         return sub
 
     def beta(self):
+        if self.Wm.n < self.Vn.n:
+            return 0.0
+            
         if self.U is None or self.S is None or self.V is None:
             self.calc_svd()
 

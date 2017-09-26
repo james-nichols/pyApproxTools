@@ -30,7 +30,7 @@ class GreedyApprox(object):
             from which we generate the dictionary. """
         
         self.dictionary = copy.copy(dictionary)
-
+        
         self.Vn = Vn
         self.Vn.make_grammian()
         self.Wm = Wm or Basis()
@@ -56,7 +56,6 @@ class GreedyApprox(object):
     def construct_to_m(self, m_goal):
 
         if self.verbose:
-            print('\n\nGenerating basis from greedy algorithm with dictionary: ')
             print('i \t || P_Vn (w - P_Wm w) ||')
 
         if self.Wm.n == 0:
@@ -67,13 +66,19 @@ class GreedyApprox(object):
             self.Wm.add_vector(self.dictionary[n0])
             self.m = self.Wm.n
     
+        if self.BP is None:
+            self.BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
+        elif self.BP.Wm is not self.Wm.orthonormal_basis or self.BP.Vn is not self.Vn:
+            self.BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
+        
         while self.Wm.n < m_goal:
             
             ni, crit = self.next_step_choice(self.Wm.n)
             
             self.sel_crit = np.append(self.sel_crit, crit)
 
-            self.Wm.add_vector(self.dictionary[ni], incr_ortho=True)
+            self.BP.add_Wm_vector(self.dictionary[ni])
+            self.Wm.add_vector(self.dictionary[ni])
             self.m = self.Wm.n
 
             if self.remove:
@@ -86,26 +91,29 @@ class GreedyApprox(object):
 
     def construct_to_beta(self, beta_goal, m_max_ratio=10):
 
+        if self.verbose:
+            print('i \t || P_Vn (w - P_Wm w) ||')
+
+        if self.Wm.n == 0:
+            n0, crit = self.initial_choice()
+            self.sel_crit = np.append(self.sel_crit, crit)
+                
+            self.Wm.add_vector(self.dictionary[n0])
+            self.m = self.Wm.n
+        
         if self.BP is None:
             self.BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
         elif self.BP.Wm is not self.Wm.orthonormal_basis or self.BP.Vn is not self.Vn:
             self.BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
-
-        if self.Wm.n == 0:
-            n0, crit = self.initial_choice()
-
-            self.sel_crit = np.append(self.sel_crit, crit)
-            
-            self.BP.add_Wm_vector(self.dictionary[ni])
-            self.m = self.Wm.n
-    
+        
         while self.BP.beta() < beta_goal:
-
             ni, crit = self.next_step_choice(self.Wm.n)
             
             self.sel_crit = np.append(self.sel_crit, crit)
             
             self.BP.add_Wm_vector(self.dictionary[ni])
+            self.Wm.add_vector(self.dictionary[ni])
+
             self.m = self.Wm.n
 
             if self.remove:
@@ -167,7 +175,7 @@ class WorstCaseOMP(GreedyApprox):
         """ We need to be either given a dictionary or a point generator that produces d-dimensional points
             from which we generate the dictionary. """
         super().__init__(dictionary, Vn, Wm=Wm, verbose=verbose, remove=remove)
-            
+        
         self.BP = None
         self.Vtilde = []
 
@@ -180,7 +188,7 @@ class WorstCaseOMP(GreedyApprox):
         dots = np.zeros(len(self.dictionary))
         for i, d in enumerate(self.dictionary):
             dots[i] = v0.dot(d)
-
+        
         n0 = np.argmax(dots)
       
         self.Vtilde.append(v0)
@@ -190,20 +198,20 @@ class WorstCaseOMP(GreedyApprox):
     def next_step_choice(self, i):
         """ Different greedy methods will have their own maximising/minimising criteria, so all 
         inheritors of this class are expected to overwrite this method to suit their needs. """
+        if self.BP.Wm is not self.Wm.orthonormal_basis or self.BP.Vn is not self.Vn:
+            self.BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
         
         next_crit = np.zeros(len(self.dictionary))
+ 
         # We go through the dictionary and find the max of || f ||^2 - || P_Vn f ||^2
-        BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
-        
-        v = BP.Vn_singular_vec(-1)
-        
+        v = self.BP.Vn_singular_vec(-1)
         v_perp = v - self.Wm.project(v)
         for j in range(len(self.dictionary)):
             next_crit[j] = abs(v_perp.dot(self.dictionary[j]))
-        
+         
         ni = np.argmax(next_crit)
         self.Vtilde.append(v)
-
+        
         if self.verbose:
             print('{0} : \t {1} \t {2}'.format(i, ni, next_crit[ni]))
 

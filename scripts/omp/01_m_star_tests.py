@@ -33,32 +33,17 @@ Vn = pat.make_sin_basis(ns[-1])
 
 for j, n in enumerate(ns):
     
-    m = 2 * n
-
-    gbc = pat.CollectiveOMP(m, dictionary, Vn.subspace(slice(0,n)), verbose=True)
-    Wm_comp = gbc.construct_basis()
-    Wm_comp_o = Wm_comp.orthonormalise()
-
-    wcgbc = pat.WorstCaseOMP(m, dictionary, Vn.subspace(slice(0,n)), verbose=True)
-    Wm_wcomp = wcgbc.construct_basis()
-    Wm_wcomp_o = Wm_wcomp.orthonormalise()
-
-    BP_comp_l = pat.BasisPair(Wm_comp_o, Vn.subspace(slice(0,n)))
-    BP_wcomp_l = pat.BasisPair(Wm_wcomp_o, Vn.subspace(slice(0,n)))    
+    gbc = pat.CollectiveOMP(dictionary, Vn.subspace(slice(0,n)), verbose=True)
+    Wm_comp = gbc.construct_to_beta(beta_star)
     
-    for i in range(n, m):
-        BP_comp = BP_comp_l.subspace(Wm_indices=slice(0,i))
-        if BP_comp.beta() > beta_star:
-            ms_comp[j,0] = n #BP_comp.beta()
-            ms_comp[j,1] = i #BP_comp.beta()
-            break
+    wcgbc = pat.WorstCaseOMP(dictionary, Vn.subspace(slice(0,n)), verbose=True)
+    Wm_wcomp = wcgbc.construct_to_beta(beta_star)
 
-    for i in range(n, m):
-        BP_wcomp =  BP_wcomp_l.subspace(Wm_indices=slice(0,i))
-        if BP_wcomp.beta() > beta_star:
-            ms_wcomp[j,0] = n #BP_wcomp.beta()
-            ms_wcomp[j,1] = i #BP_wcomp.beta()
-            break
+    ms_comp[j,0] = n
+    ms_comp[j,1] = Wm_comp.n
+
+    ms_wcomp[j,0] = n
+    ms_wcomp[j,1] = Wm_wcomp.n
 
 comp_file = './comp_sin_m_star.csv'
 if os.path.isfile(comp_file):
