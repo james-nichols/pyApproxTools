@@ -45,21 +45,21 @@ for j, n in enumerate(ns[1:]):
     
     cgbc.Vn = Vn.subspace(slice(0,n))
     Wm_comp = cgbc.construct_to_beta(beta_star)
-    ms_comp[j,0] = ns[0]
+    ms_comp[j,0] = n
     ms_comp[j,1] = cgbc.m
     
     wcgbc.Vn = Vn.subspace(slice(0,n))
     Wm_wcomp = wcgbc.construct_to_beta(beta_star)
-    ms_wcomp[j,0] = ns[0]
+    ms_wcomp[j,0] = n 
     ms_wcomp[j,1] = wcgbc.m
 
-comp_file = './comp_sin_m_star.csv'
+comp_file = './comp_sin_n_incr_m_star.csv'
 if os.path.isfile(comp_file):
     ms_comp_prev = np.loadtxt(comp_file)
     ms_comp = np.append(ms_comp_prev, ms_comp, axis=0)
 np.savetxt(comp_file, ms_comp, fmt='%i')
 
-wcomp_file = './wcomp_sin_m_star.csv'
+wcomp_file = './wcomp_sin_n_incr_m_star.csv'
 if os.path.isfile(wcomp_file):
     ms_wcomp_prev = np.loadtxt(wcomp_file)
     ms_wcomp = np.append(ms_wcomp_prev, ms_wcomp, axis=0)
