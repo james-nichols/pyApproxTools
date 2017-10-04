@@ -174,7 +174,7 @@ def make_pw_sin_basis(div, N=None):
                 v_i = PWLinearSqDyadicH1(func = f, div = div)
                 Vn.append(v_i)
 
-    return PWBasis(Vn, space='H1')
+    return PWBasis(Vn, space='H1', is_orthonormal=True)
 
 
 def make_pw_reduced_basis(n, field_div, fem_div, point_gen=None, space='H1', a_bar=1.0, c=0.5, f=1.0):
