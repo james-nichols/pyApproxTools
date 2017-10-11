@@ -192,7 +192,7 @@ class H1UISin(H1UIElement):
         lc = left_params.values_array()
         rc = right_params.values_array()
         lp = left_params.keys_array()
-        rp = left_params.keys_array()
+        rp = right_params.keys_array()
 
         return (lc[:,np.newaxis] * rc * np.equal.outer(lp, rp)).sum()
 
@@ -328,14 +328,14 @@ class H1UIAvg(H1UIElement):
 
         if any(a > b) or any(c > d): 
             raise Exception('Some local-average intervals are in reverse, a > b')
-
-        dot = (b <= c) * self._disj(a, b, c, d)
+        
+        dot = (b < c) * self._disj(a, b, c, d)
         dot += ((a < c) & (c <= b) & (b <= d)) * self._intr(a, b, c, d)
         dot += ((a <= c) & (d <= b)) * self._cont(a, b, c, d)
-        dot += ((c < a) & (b < d)) * self._cont(c, d, a, b)
+        dot += ((c < a) & (b <= d)) * self._cont(c, d, a, b)
         dot += ((c < a) & (a <= d) & (d < b)) * self._intr(c, d, a, b)  
         dot += (d < a) * self._disj(c, d, a, b)
-
+        
         return (lc * ln * rc * rn * dot).sum()
         
     # These internal functions represent the different cases for when the local avg is dotted against itself
@@ -661,6 +661,7 @@ class Vector(object):
         pass
     
     def norm(self):
+        pdb.set_trace()
         return math.sqrt(self.dot(self))
 
     def evaluate(self, x):
