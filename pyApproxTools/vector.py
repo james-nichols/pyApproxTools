@@ -326,15 +326,24 @@ class H1UIAvg(H1UIElement):
         rc = right_params.values_array()
         rn = self._normaliser(right_params)
 
-        if any(a > b) or any(c > d): 
-            raise Exception('Some local-average intervals are in reverse, a > b')
+        if any(a >= b) or any(c >= d): 
+            raise Exception('Some local-average intervals are in reverse or null, a >= b')
         
-        dot = (b < c) * self._disj(a, b, c, d)
-        dot += ((a < c) & (c <= b) & (b <= d)) * self._intr(a, b, c, d)
-        dot += ((a <= c) & (d <= b)) * self._cont(a, b, c, d)
-        dot += ((c < a) & (b <= d)) * self._cont(c, d, a, b)
-        dot += ((c < a) & (a <= d) & (d < b)) * self._intr(c, d, a, b)  
-        dot += (d < a) * self._disj(c, d, a, b)
+        inq_1 = a < c
+        inq_2 = b < d
+        inq_3 = a < d
+        inq_4 = b < c
+
+        # These selections are the only possible combinations of inq_1, 2, 3 and 4 
+        # that don't clash with the requirements that a < b and c < d,
+        # e.g. ~(a < c) & (b < c) => b < a...
+        # Try the logic table if this confuses you...
+        dot =  (inq_1 & inq_2 & inq_3 & inq_4) * self._disj(a,b,c,d)
+        dot += (inq_1 & inq_2 & inq_3 & ~inq_4) * self._intr(a,b,c,d)
+        dot += (inq_1 & ~inq_2 & inq_3 & ~inq_4) * self._cont(a,b,c,d)
+        dot += (~inq_1 & inq_2 & inq_3 & ~inq_4) * self._cont(c,d,a,b)
+        dot += (~inq_1 & ~inq_2 & inq_3 & ~inq_4) * self._intr(c,d,a,b)
+        dot += (~inq_1 & ~inq_2 & ~inq_3 & ~inq_4) * self._disj(c,d,a,b)
         
         return (lc * ln * rc * rn * dot).sum()
         
@@ -661,7 +670,6 @@ class Vector(object):
         pass
     
     def norm(self):
-        pdb.set_trace()
         return math.sqrt(self.dot(self))
 
     def evaluate(self, x):
