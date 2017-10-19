@@ -39,7 +39,6 @@ class Basis(object):
     def __init__(self, vecs=None, space='H1', is_orthonormal=False):
         
         self.vecs = vecs or []
-        self.n = len(vecs or [])
         
         self.space = space
 
@@ -53,6 +52,11 @@ class Basis(object):
         
         self.L_inv = None
         self.U = self.S = self.V = None
+    
+
+    @property
+    def n(self):
+        return len(self.vecs)
 
     def add_vector(self, vec, incr_ortho=False, check_ortho=True):
         """ Add just one vector, so as to make the new Grammian calculation quick """
@@ -75,13 +79,11 @@ class Basis(object):
                 vec /= n
 
             self.vecs.append(vec)
-            self.n += 1
    
             if self.G is not None:
                 self.G = np.eye(self.n)
         else:
             self.vecs.append(vec)
-            self.n += 1
 
             if self.G is not None:
                 self.G = np.pad(self.G, ((0,1),(0,1)), 'constant')
@@ -255,8 +257,6 @@ class BasisPair(object):
 
         self.Wm = Wm
         self.Vn = Vn
-        self.m = Wm.n
-        self.n = Vn.n
         
         if CG is not None:
             self.CG = CG
@@ -264,6 +264,13 @@ class BasisPair(object):
             self.CG = self.cross_grammian()
 
         self.U = self.S = self.V = None
+    
+    @property
+    def n(self):
+        return self.Vn.n
+    @property
+    def m(self):
+        return self.Wm.n
 
     def cross_grammian(self):
         CG = np.zeros([self.m, self.n])
@@ -275,24 +282,22 @@ class BasisPair(object):
     
     def add_Vn_vector(self, v):
         self.Vn.add_vector(v)
-        self.n += 1
 
         if self.CG is not None:
             self.CG = np.pad(self.CG, ((0,0),(0,1)), 'constant')
 
             for i in range(self.m):
-                self.CG[i, self.n-1] = self.Wm.vecs[i].dot(self.Vn.vecs[-1])
+                self.CG[i, -1] = self.Wm.vecs[i].dot(self.Vn.vecs[-1])
 
         self.U = self.V = self.S = None
 
     def add_Wm_vector(self, w):
         self.Wm.add_vector(w)
-        self.m += 1
 
         if self.CG is not None:
             self.CG = np.pad(self.CG, ((0,1),(0,0)), 'constant')
             for i in range(self.n):
-                self.CG[self.m-1, i] = self.Vn.vecs[i].dot(self.Wm.vecs[-1])
+                self.CG[-1, i] = self.Vn.vecs[i].dot(self.Wm.vecs[-1])
 
         self.U = self.V = self.S = None
 
