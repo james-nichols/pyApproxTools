@@ -248,7 +248,7 @@ class Basis(object):
 
 class BasisPair(object):
     """ This class automatically sets up the cross grammian, calculates
-        beta, and can do the optimal reconstruction and calculated a favourable basis """
+        beta, and can do the optimal reconstruction and calculate a favourable basis """
 
     def __init__(self, Wm, Vn, CG=None):
 
@@ -374,6 +374,8 @@ class BasisPair(object):
         """ And here it is - the optimal reconstruction """
         if Vn.n > Wm.n:
             raise Exception('Error - Wm must be of higher dimensionality than Vn to be able to do optimal reconstruction')
+        if not self.Wm.is_orthonormal or not self.Vn.is_orthonormal:
+            raise Exception('Both Wm and Vn must be orthonormal to calculate the favourable basis!')
         try:
             c = scipy.linalg.solve(self.CG.T @ self.CG, self.CG.T @ w, sym_pos=True)
         except np.linalg.LinAlgError as e:
