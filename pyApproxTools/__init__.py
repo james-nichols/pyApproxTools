@@ -6,3 +6,4 @@ from pyApproxTools.utils import *
 from pyApproxTools.pw_vector import *
 from pyApproxTools.pw_basis import *
 from pyApproxTools.pw_utils import *
+from pyApproxTools.point_generator import *
