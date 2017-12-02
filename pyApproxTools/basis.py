@@ -149,6 +149,9 @@ class Basis(object):
         
         # Either this basis is orthonormal, or we've made the orthonormal basis...
         if self.is_orthonormal:
+            if return_coeffs:
+                c = self.dot(u)
+                return self.reconstruct(c), c
             return self.reconstruct(self.dot(u))
         elif self.orthonormal_basis is not None:
             return self.orthonormal_basis.project(u)
