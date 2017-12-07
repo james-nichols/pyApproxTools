@@ -375,7 +375,7 @@ class BasisPair(object):
 
     def optimal_reconstruction(self, w, disp_cond=False):
         """ And here it is - the optimal reconstruction """
-        if Vn.n > Wm.n:
+        if self.Vn.n > self.Wm.n:
             raise Exception('Error - Wm must be of higher dimensionality than Vn to be able to do optimal reconstruction')
         if not self.Wm.is_orthonormal or not self.Vn.is_orthonormal:
             raise Exception('Both Wm and Vn must be orthonormal to calculate the favourable basis!')
