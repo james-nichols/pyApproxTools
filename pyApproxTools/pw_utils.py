@@ -177,26 +177,31 @@ def make_pw_sin_basis(div, N=None):
     return PWBasis(Vn, space='H1', is_orthonormal=True)
 
 
-def make_pw_reduced_basis(n, field_div, fem_div, point_gen=None, space='H1', a_bar=1.0, c=0.5, f=1.0):
+def make_pw_reduced_basis(n, field_div, fem_div, point_gen=None, space='H1', a_bar=1.0, c=0.5, f=1.0, verbose=False):
     # Make a basis of m solutions to the FEM problem, from random generated fields
+    # NB These solutions are NORMALISED
 
     side_n = 2**field_div
     
     if point_gen is None:
-        point_gen = MonteCarlo(d=side_n*side_n, n=n, lims=[-1, 1])
+        point_gen = MonteCarlo(d=side_n*side_n, n=n, lims=[-1.0, 1.0])
     elif point_gen.n != n:
         raise Exception('Need point dictionary with right number of points!')
 
     Vn = []
     fields = []
-
+    
+    if verbose:
+        print('Generated snapshot: ')
     for i in range(n):
         field = PWConstantSqDyadicL2(a_bar + c * point_gen.points[i,:].reshape([side_n, side_n]), div=field_div)
         fields.append(field)
         # Then the fem solver (there a faster way to do this all at once? This will be huge...
         fem_solver = DyadicFEMSolver(div=fem_div, rand_field = field, f = 1)
         fem_solver.solve()
-        Vn.append(fem_solver.u)
+        Vn.append(fem_solver.u / fem_solver.u.norm())
+        if verbose:
+            print(str(i), end=' ')
         
     return PWBasis(Vn, space=space), fields
 
