@@ -163,13 +163,13 @@ def make_pw_sin_basis(div, N=None):
     # We want an ordering such that we get (1,1), (1,2), (2,1), (2,2), (2,3), (3,2), (3,1), (1,3), ...
     for n in range(1,N+1):
         for m in range(1,n+1):
-            def f(x,y): return np.sin(n * math.pi * x) * np.sin(m * math.pi * y) * 2.0 / math.sqrt(1.0 + math.pi * math.pi * (m * m + n * n))
+            def f(x,y): return np.sin(n * math.pi * x) * np.sin(m * math.pi * y) * 2.0 / math.sqrt(math.pi * math.pi * (m * m + n * n))
             v_i = PWLinearSqDyadicH1(func = f, div = div)
             Vn.append(v_i)
             
             # We do the mirrored map here
             if m < n:
-                def f(x,y): return np.sin(m * math.pi * x) * np.sin(n * math.pi * y) * 2.0 / math.sqrt(1.0 + math.pi * math.pi * (m * m + n * n))
+                def f(x,y): return np.sin(m * math.pi * x) * np.sin(n * math.pi * y) * 2.0 / math.sqrt(math.pi * math.pi * (m * m + n * n))
 
                 v_i = PWLinearSqDyadicH1(func = f, div = div)
                 Vn.append(v_i)
