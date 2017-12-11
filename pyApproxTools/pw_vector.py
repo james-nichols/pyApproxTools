@@ -14,6 +14,8 @@ import scipy.linalg
 from scipy import sparse
 import copy
 
+import warnings
+
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib import cm 
@@ -39,18 +41,13 @@ class PWSqDyadic(Vector):
         self.div = div
 
         if div is not None:
-            self.div = div
-            self.x_grid = np.linspace(self.domain[0][0], self.domain[0][1], self.side_len, endpoint=True)
-            self.y_grid = np.linspace(self.domain[1][0], self.domain[1][1], self.side_len, endpoint=True)
-            
             if func is not None:
                 if values is not None:
-                    raise Exception('DyadicPWLinear: Specify either a function or the values, not both')
+                    raise Exception('{0}: Specify either a function or the values, not both'.format(self.__class__.__name__))
                 x, y = np.meshgrid(self.x_grid, self.y_grid)
                 self.values = func(x, y)
+            ## TODO: put this logic in the values setter routine
             elif values is not None:
-                if (values.shape[0] != values.shape[1] or values.shape[0] != self.side_len):
-                    raise Exception("DyadicPWLinear: Error - values must be on a dyadic square of size {0}".format(self.side_len))
                 self.values = values
 
             else:
@@ -58,25 +55,52 @@ class PWSqDyadic(Vector):
         else:
             if values is not None:
                 self.values = values
-                self.div = int(math.log(values.shape[0] - 1, 2))
-                if (values.shape[0] != values.shape[1] or values.shape[0] != self.side_len):
-                    raise Exception("DyadicPWLinear: Error - values must be on a dyadic square, shape of {0} closest to div {1}".format(self.side_len, self.div))
-                self.x_grid = np.linspace(0.0, 1.0, self.side_len, endpoint=True)
-                self.y_grid = np.linspace(0.0, 1.0, self.side_len, endpoint=True)
+                
             elif func is not None:
-                raise Exception('DyadicPWLinear: Error - need grid size when specifying function')
+                raise Exception('{0}: Error - need grid size when specifying function'.format(self.__class__.__name__))
     
     @property
     def side_len(self):
-        return 0
+        return self._side_len(self.div)
+    def _side_len(self, d):
+        return 2**d
+
+    @property
+    def x_grid(self):
+        return self._x_grid(self.side_len)
+    def _x_grid(self, sl):
+        return np.linspace(self.domain[0][0], self.domain[0][1], sl, endpoint=True)
+    @property
+    def y_grid(self):
+        return self._y_grid(self.side_len)
+    def _y_grid(self, sl):
+        return np.linspace(self.domain[1][0], self.domain[1][1], sl, endpoint=True)
+
+    @property
+    def values(self):
+        return self._values
+    @values.setter
+    def values(self, vals):
+        self._set_values(vals)
+
+    def _set_values(self, vals):
+        if self.div is None:        
+            # If we don't yet have a div, then we extract it
+            self.div = 0
+            while self.side_len < vals.shape[0]:
+                self.div += 1
+
+        if (vals.shape[0] != vals.shape[1] or vals.shape[0] != self.side_len):
+            raise Exception("{0}: Error - values of shape {1}x{2} not square or don't match dimensions {3}x{3} (div {4})" .format(self.__class__.__name__, \
+                            vals.shape[0], vals.shape[1], self.side_len, self.div))
+        self._values = vals
 
     def interpolate(self, interp_div):
         """ Simple interpolation routine to make this function on a finer division dyadic grid """
         pass 
 
-
     # Here we overload the + += - -= * and / operators
-    def __add__(self,other):
+    def __add__(self, other):
         if isinstance(other, type(self)):
             d = max(self.div,other.div)
             u = self.interpolate(d)
@@ -151,9 +175,15 @@ class PWLinearSqDyadicH1(PWSqDyadic):
         super().__init__(values, div, func)
         self.space = 'H1'
 
-    @property
-    def side_len(self):
-        return 2 ** self.div + 1
+    def _side_len(self, d):
+        return 2 ** d + 1
+
+    def _set_values(self, vals):
+        super()._set_values(vals)
+
+        if not np.allclose(self.values[:,0], 0) or not np.allclose(self.values[:,-1], 0) or not np.allclose(self.values[0,:], 0) or not np.allclose(self.values[-1,:], 0):
+            warnings.warn("{0}: attempted to set some boundary values as non-zero, were forced to zero".format(self.__class__.__name__))
+        self.values[:,0] = self.values[:,-1] = self.values[0,:] = self.values[-1,:] = 0
 
     def dot(self, other):
         if isinstance(other, type(self)):
@@ -189,7 +219,35 @@ class PWLinearSqDyadicH1(PWSqDyadic):
         p[0,:] = p[-1,:] = 1
         dot = dot + (p * (u[:,1:] - u[:,:-1]) * (v[:,1:] - v[:,:-1])).sum()
         
-        return 0.5 * dot + self.L2_inner(u,v,h)
+        return 0.5 * dot # + self.L2_inner(u,v,h)
+
+    def L2_inner_new_proposed(self, u, v, h):
+        # u and v are on the same grid / triangulation, so now we do the simple L2
+        # inner product (hah... simple??)
+
+        # the point adjacency matrix
+        p = 6 * (1.0/18.0) * np.ones(u.shape)
+        p[:,0] = p[0,:] = p[:,-1] = p[-1,:] = 3
+        p[0,0] = p[-1,-1] = 1
+        p[0,-1] = p[-1, 0] = 2 
+        dot = (u * v * p).sum()
+        
+        # Now add all the vertical edges
+        p = 2 * (2.0/45.0) * np.ones([u.shape[0]-1, u.shape[1]])
+        p[0,:] = p[-1,:] = 1
+        dot = dot + ((u[1:,:] * v[:-1,:] + u[:-1,:] * v[1:,:]) * p * 0.5).sum()
+
+        # Now add all the horizontal edges
+        p = 2 * (2.0/45.0) * np.ones([u.shape[0], u.shape[1]-1])
+        p[:,0] = p[:,-1] = 1
+        dot = dot + ((u[:,1:] * v[:,:-1] + u[:,:-1] * v[:,1:]) * p * 0.5).sum()
+
+        # Finally all the diagonals (note every diagonal is adjacent to two triangles,
+        # so don't need p)
+        dot = dot + 2 * (1.0/72.0) * (u[:-1,1:] * v[1:,:-1] + u[1:,:-1] * v[:-1,1:] ).sum()
+        #dot = dot + (u[:-1,1:] * v[:-1,1:] + u[1:,:-1] * v[1:,:-1] ).sum()
+        
+        return h * h * dot
 
     def L2_inner(self, u, v, h):
         # u and v are on the same grid / triangulation, so now we do the simple L2
@@ -226,14 +284,11 @@ class PWLinearSqDyadicH1(PWSqDyadic):
             return self
         else:
             interp_func = scipy.interpolate.interp2d(self.x_grid, self.y_grid, self.values, kind='linear')
-            x = y = np.linspace(0.0, 1.0, 2**interp_div + 1, endpoint=True)
-            return DyadicPWLinear(interp_func(x, y), interp_div)
+            return type(self)(interp_func(self._x_grid(self._side_len(interp_div)), self._y_grid(self._side_len(interp_div))), interp_div)
 
     def plot(self, ax, title=None, div_frame=4, alpha=0.5, cmap=cm.jet, show_axes_labels=True):
 
-        x = np.linspace(0.0, 1.0, self.values.shape[0], endpoint = True)
-        y = np.linspace(0.0, 1.0, self.values.shape[1], endpoint = True)
-        xs, ys = np.meshgrid(x, y)
+        xs, ys = np.meshgrid(self.x_grid, self.y_grid)
 
         if self.div > div_frame:
             wframe = ax.plot_surface(xs, ys, self.values, cstride=2**(self.div - div_frame), rstride=2**(self.div-div_frame), 
@@ -256,9 +311,13 @@ class PWConstantSqDyadicL2(PWSqDyadic):
         super().__init__(values, div, func)
         self.space = 'L2'
 
-    @property
-    def side_len(self):
-        return 2 ** self.div
+    def _side_len(self, d):
+        return 2**d
+
+    def _x_grid(self, sl):
+        return np.linspace(self.domain[0][0], self.domain[0][1], sl, endpoint=False) + 0.5 / sl
+    def _y_grid(self, sl):
+        return np.linspace(self.domain[1][0], self.domain[1][1], sl, endpoint=False) + 0.5 / sl
 
     def dot(self, other):
         if isinstance(other, type(self)):
@@ -267,7 +326,6 @@ class PWConstantSqDyadicL2(PWSqDyadic):
             raise Exception('Dot product can only be between compatible dyadic functions')
 
     def L2_dot(self, other):
-
         d = max(self.div, other.div)
         u = self.interpolate(d)
         v = other.interpolate(d)
@@ -277,7 +335,7 @@ class PWConstantSqDyadicL2(PWSqDyadic):
     def interpolate(self, div):
         """ Simple interpolation routine to make this function on a finer division dyadic grid """
         if div < self.div:
-            raise Exception('DyadicPWConstant: Interpolate div must be greater than or equal to field div')
+            raise Exception('{0}: Interpolate div must be greater than or equal to field div'.format(self.__class__.__name__))
         elif div == self.div:
             return self
         else:
