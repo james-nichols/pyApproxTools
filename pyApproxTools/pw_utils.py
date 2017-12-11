@@ -165,6 +165,7 @@ def make_pw_sin_basis(div, N=None):
         for m in range(1,n+1):
             def f(x,y): return np.sin(n * math.pi * x) * np.sin(m * math.pi * y) * 2.0 / math.sqrt(math.pi * math.pi * (m * m + n * n))
             v_i = PWLinearSqDyadicH1(func = f, div = div)
+            v_i /= v_i.norm()
             Vn.append(v_i)
             
             # We do the mirrored map here
@@ -172,6 +173,7 @@ def make_pw_sin_basis(div, N=None):
                 def f(x,y): return np.sin(m * math.pi * x) * np.sin(n * math.pi * y) * 2.0 / math.sqrt(math.pi * math.pi * (m * m + n * n))
 
                 v_i = PWLinearSqDyadicH1(func = f, div = div)
+                v_i /= v_i.norm()
                 Vn.append(v_i)
 
     return PWBasis(Vn, space='H1', is_orthonormal=True)
