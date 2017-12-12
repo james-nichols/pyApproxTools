@@ -264,7 +264,7 @@ def make_pw_random_local_integration_basis(m, div, width=2, bounds=None, bound_p
 
     return W
 
-def make_local_integration_basis(width, spacing, div):
+def make_local_integration_basis(width, spacing, div, return_map=False):
 
     M_m = []
     
@@ -297,5 +297,9 @@ def make_local_integration_basis(width, spacing, div):
             M_m.append(meas)
     
     W = PWBasis(M_m)
+
+    if return_map:
+        return W, local_meas_fun
+    
     return W
 

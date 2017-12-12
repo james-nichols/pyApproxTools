@@ -284,7 +284,7 @@ product calculations in V_h or V, the ambient solution space
 
 class GreedyApprox(object):
 
-    def __init__(self, dictionary, w, Wm, Vn=None, verbose=False, remove=False):
+    def __init__(self, dictionary, Vn=None, verbose=False, remove=False):
         """ We need to be either given a dictionary or a point generator that produces d-dimensional points
             from which we generate the dictionary. """
         
@@ -292,38 +292,57 @@ class GreedyApprox(object):
         
         self.Vn = Vn or Basis()
         self.Vn.make_grammian()
-        self.n = self.Vn.n
-        
-        if not Wm.is_orthonormal:
-            raise Exception('Need orthonormal Wm for greedy approx constructino')
-
-        self.Wm = Wm
-        self.m = self.Wm.n
-        self.Wm.make_grammian()
-
-        self.w = w
-
-        self.BP = None
-        self.beta = None
-
+       
         self.verbose = verbose
         self.remove = remove
         self.sel_crit = np.zeros(self.m)
 
+    @property
+    def n(self):
+        return self.Vn.n
+    
     def initial_choice(self):
         """ Different greedy methods will have their own maximising/minimising criteria, so all 
         inheritors of this class are expected to overwrite this method to suit their needs. """
-        pass
+        
+        self.norms = np.linalg.norm(self.dots, axis=1)
 
-    def next_step_choice(self, i):
+        n0 = np.argmax(self.norms)
+        crit = self.norms[n0]
+
+        self.Vn.add_vector(self.dictionary[n0])
+
+        if self.remove:
+            self.dots = np.delete(self.dots, n0)
+
+        return n0, crit
+ 
+
+    def next_step_choice(self):
         """ Different greedy methods will have their own maximising/minimising criteria, so all 
         inheritors of this class are expected to overwrite this method to suit their needs. """
-        pass
+    
+        p_V_d = np.zeros(len(self.dictionary))
+        # We go through the dictionary and find the max of 
+        for j, v in enumerate(self.dictionary):
+            v_perp = v - self.Vn.project(v)
+            p_V_d[j] = v_perp.norm()
+        
+        ni = np.argmax(p_V_d)
+        crit = p_V_d[ni]
 
+        self.Vn.add_vector(self.dictionary[ni])
+        
+        if self.remove:
+            self.norms = np.delete(self.norms, ni)
+
+        if self.verbose:
+            print('{0} : \t {1}'.format(self.Vn.n, crit)) 
+
+        return ni, crit
+    
     def construct_to_n(self, n_goal):
         
-        self.beta = np.zeros(n_goal)
-
         if self.verbose:
             print('i \t Sel. criteria')
 
@@ -332,28 +351,14 @@ class GreedyApprox(object):
 
             self.sel_crit = np.append(self.sel_crit, crit)
             
-            self.Vn.add_vector(self.dictionary[n0])
-            self.n = self.Vn.n
-
             if self.remove:
                 del self.dictionary[n0]
-    
-        if self.BP is None or self.BP.Vn is not self.Vn.orthonormal_basis:
-            self.BP = BasisPair(self.Wm, self.Vn.orthonormalise())
-       
-        self.beta[self.n - 1] = self.BP.beta()
-
+   
         while self.Vn.n < n_goal:
             
-            ni, crit = self.next_step_choice(self.Vn.n)
+            ni, crit = self.next_step_choice()
             
             self.sel_crit = np.append(self.sel_crit, crit)
-
-            self.Vn.add_vector(self.dictionary[ni])
-            self.n = self.Vn.n
-            
-            self.BP.add_Vn_vector(self.dictionary[ni])
-            self.beta[self.n - 1] = self.BP.beta()
 
             if self.remove:
                 del self.dictionary[ni]
@@ -362,78 +367,61 @@ class GreedyApprox(object):
             print('\n\nDone!')
         
         return self.Vn
-"""
-    def construct_to_beta(self, beta_goal, m_max_ratio=10):
-
-        if self.verbose:
-            print('i \t || P_Vn (w - P_Wm w) ||')
-
-        if self.Wm.n == 0:
-            n0, crit = self.initial_choice()
-            self.sel_crit = np.append(self.sel_crit, crit)
-                
-            self.Wm.add_vector(self.dictionary[n0])
-            self.m = self.Wm.n
-        
-        if self.BP is None:
-            self.BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
-        elif self.BP.Wm is not self.Wm.orthonormal_basis or self.BP.Vn is not self.Vn:
-            self.BP = BasisPair(self.Wm.orthonormalise(), self.Vn)
-        
-        while self.BP.beta() < beta_goal:
-            ni, crit = self.next_step_choice(self.Wm.n)
-            
-            self.sel_crit = np.append(self.sel_crit, crit)
-            
-            self.BP.add_Wm_vector(self.dictionary[ni])
-            self.Wm.add_vector(self.dictionary[ni])
-
-            self.m = self.Wm.n
-
-            if self.remove:
-                del self.dictionary[ni]
-            
-            if self.Wm.n > m_max_ratio * self.Vn.n:
-                print('Ceiling reached for Wm size before beta_goal reached!')
-                break
-
-        if self.verbose:
-            print('\n\nDone!')
-        
-        return self.Wm
-        """
-
 
 class MeasBasedGreedy(GreedyApprox):
-    """ This is the original greedy algorithm that minimises the Kolmogorov n-width, and a 
-        generic base-class for all other greedy algorithms """
-    
+    """ Measurement based greedy algorithm """ 
     def __init__(self, dictionary, w, Wm, Vn=None, verbose=False, remove=False):
+ 
+        if not Wm.is_orthonormal:
+            raise Exception('Need orthonormal Wm for greedy approx construction')
 
-        super().__init__(dictionary, w, Wm, Vn=Vn, verbose=verbose, remove=remove)
+        self.Wm = Wm
+        self.Wm.make_grammian()
+
+        self.w = w
+
+        self.BP = None
+        self.beta = np.zeros(self.m)
+
+        super().__init__(dictionary, Vn=Vn, verbose=verbose, remove=remove)
 
         self.dots = np.zeros((len(dictionary), self.m))
         for i, v in enumerate(dictionary):
             self.dots[i, :] = self.Wm.dot(v)
 
+    @property
+    def m(self):
+        return self.Wm.n
+
+    def construct_to_n(self, n_goal):
+
+        self.beta.resize(n_goal)
+        super().construct_to_n(n_goal)
+
+        return self.Vn
+
     def initial_choice(self):
-        """ Different greedy methods will have their own maximising/minimising criteria, so all 
-        inheritors of this class are expected to overwrite this method to suit their needs. """
 
         self.norms = np.linalg.norm(self.dots, axis=1)
 
         n0 = np.argmax(self.norms)
         crit = self.norms[n0]
 
+        self.Vn.add_vector(self.dictionary[n0])
+
+        if self.BP is None or self.BP.Vn is not self.Vn.orthonormal_basis:
+            self.BP = BasisPair(self.Wm, self.Vn.orthonormalise())
+        self.beta[self.n - 1] = self.BP.beta()
+    
         if self.remove:
             self.dots = np.delete(self.dots, n0)
 
         return n0, crit
 
-    def next_step_choice(self, i):
+    def next_step_choice(self):
         """ Different greedy methods will have their own maximising/minimising criteria, so all 
         inheritors of this class are expected to overwrite this method to suit their needs. """
-
+ 
         p_V_d = np.zeros(len(self.dictionary))
         # We go through the dictionary and find the max of 
         for j, v in enumerate(self.dictionary):
@@ -443,11 +431,16 @@ class MeasBasedGreedy(GreedyApprox):
         ni = np.argmax(p_V_d)
         crit = p_V_d[ni]
 
+        self.Vn.add_vector(self.dictionary[ni])
+        
+        self.BP.add_Vn_vector(self.dictionary[ni])
+        self.beta[self.n-1] = self.BP.beta()
+
         if self.remove:
             self.norms = np.delete(self.norms, ni)
 
         if self.verbose:
-            print('{0} : \t {1}'.format(i, crit)) 
+            print('{0} : \t {1}'.format(self.Vn.n, crit)) 
 
         return ni, crit
 
