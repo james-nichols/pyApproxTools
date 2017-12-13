@@ -49,7 +49,6 @@ class PWSqDyadic(Vector):
             ## TODO: put this logic in the values setter routine
             elif values is not None:
                 self.values = values
-
             else:
                 self.values = np.zeros([self.side_len, self.side_len])
         else:

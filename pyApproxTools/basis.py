@@ -15,10 +15,9 @@ import scipy as sp
 import scipy.sparse 
 import scipy.linalg
 import copy
+import warnings
+
 from pyApproxTools.vector import *
-
-
-import pdb
 
 __all__ = ['Basis', 'BasisPair', 'FavorableBasisPair']
 
@@ -75,10 +74,11 @@ class Basis(object):
                     vec = vec - v_dot[i] * v
                 n = vec.norm()
                 if n < 1e-13:
-                    raise Exception('Error - tried adding linearly dependent vector to ortho basis')
-                vec /= n
-
-            self.vecs.append(vec)
+                    warnings.warn('{0}: tried adding linearly dependent vector to ortho basis, discarding...'.format(self.__class__.__name__))
+                else:
+                    self.vecs.append(vec / n)
+            else:
+                self.vecs.append(vec/vec.norm())
    
             if self.G is not None:
                 self.G = np.eye(self.n)

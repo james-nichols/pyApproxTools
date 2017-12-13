@@ -13,6 +13,7 @@ import scipy.linalg
 import scipy.sparse
 from itertools import *
 import copy
+import warnings
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -26,8 +27,8 @@ from pyApproxTools.pw_basis import *
 from pyApproxTools.point_generator import *
 
 __all__ = ['DyadicFEMSolver','make_pw_hat_basis','make_pw_hat_dict','make_pw_hat_rep_dict',\
-           'make_pw_sin_basis','make_pw_reduced_basis','make_pw_random_local_integration_basis',\
-           'make_local_integration_basis']
+           'make_pw_sin_basis','make_pw_reduced_basis','make_pw_local_avg_random_basis',\
+           'make_local_avg_grid_basis']
 
 class DyadicFEMSolver(object):
     """ Solves the -div( a nabla u ) = f PDE on a grid, with a given by 
@@ -121,6 +122,7 @@ def make_pw_hat_dict(div, width=1):
     return Vn
 
 def make_pw_hat_rep_dict(div, width=1):
+    """ Make the dictionary of representers in H1 of integrating against a hat function """
     side_n = 2**div-1
 
     hat_b = make_pw_hat_basis(div=div)
@@ -207,7 +209,7 @@ def make_pw_reduced_basis(n, field_div, fem_div, point_gen=None, space='H1', a_b
         
     return PWBasis(Vn, space=space), fields
 
-def make_pw_random_local_integration_basis(m, div, width=2, bounds=None, bound_prop=1.0, return_map=False):
+def make_pw_local_avg_random_basis(m, div, width=2, bounds=None, bound_prop=1.0, return_map=False):
 
     M_m = []
     
@@ -264,10 +266,16 @@ def make_pw_random_local_integration_basis(m, div, width=2, bounds=None, bound_p
 
     return W
 
-def make_local_integration_basis(width, spacing, div, return_map=False):
+def make_local_avg_grid_basis(width_div, spacing_div, div, return_map=False):
+
+    if div < spacing_div or spacing_div < width_div or width_div < 1:
+        raise Exception('Require 1 <= width < spacing < div')
+    
+    spacing = 2**spacing_div
+    width = 2**width_div
 
     M_m = []
-    
+     
     h = 2**(-div)
     local_meas_fun = PWConstantSqDyadicL2(div=div)
 
@@ -278,13 +286,17 @@ def make_local_integration_basis(width, spacing, div, return_map=False):
    
     hat_b = make_pw_hat_basis(div=div)
     hat_b.make_grammian()
-    for i in range(1,2**div - width + 1, spacing):
-        for j in range(1,2**div - width + 1, spacing):
+
+    for i in range(2**(div - spacing_div)):
+        for j in range(2**(div - spacing_div)):
 
             meas = PWLinearSqDyadicH1(div=div)
-            meas.values[i:i+width, j:j+width] = stencil
-            
-            local_meas_fun.values[i:i+width, j:j+width] += 1
+            i_start = i * spacing + spacing//2 - width//2
+            j_start = j * spacing + spacing//2 - width//2
+            meas.values[i_start:i_start+width, j_start:j_start+width] = stencil
+
+            local_meas_fun.values[i_start:i_start+width, j_start:j_start+width] += 1
+
             # Then we have to make this an element of coarse H1,
             # which we do by creating a hat basis and solving
             if scipy.sparse.issparse(hat_b.G):
@@ -302,4 +314,3 @@ def make_local_integration_basis(width, spacing, div, return_map=False):
         return W, local_meas_fun
     
     return W
-
