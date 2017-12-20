@@ -767,7 +767,8 @@ class FuncVector(Vector):
         result.elements -= other.elements
         return result
 
-    __rsub__ = __sub__
+    def __rsub__(self, other):
+        return -self.__sub__(self, other)
 
     def __isub__(self, other):
         self.elements -= other.elements
@@ -781,6 +782,7 @@ class FuncVector(Vector):
     def __pos__(self):
         result = copy.deepcopy(self)
         result.elements = +result.elements
+        return result
 
     def __mul__(self, other):
         result = copy.deepcopy(self)

@@ -129,7 +129,15 @@ class PWSqDyadic(Vector):
             return type(self)(u.values - v.values, d)
         else:
             return type(self)(self.values - other, self.div)
-    __rsub__ = __sub__
+    
+    def __rsub__(self, other):
+        if isinstance(other, type(self)):
+            d = max(self.div,other.div)
+            u = self.interpolate(d)
+            v = other.interpolate(d)
+            return type(self)(v.values - u.values, d)
+        else:
+            return type(self)(other - self.values, self.div)
 
     def __isub__(self, other):
         if isinstance(other, type(self)):
@@ -163,6 +171,17 @@ class PWSqDyadic(Vector):
             return type(self)(u.values / v.values, d)
         else:
             return type(self)(self.values / other, self.div)
+
+    def __neg__(self):
+        result = copy.deepcopy(self)
+        result.values = -result.values
+        return result
+ 
+    def __pos__(self):
+        result = copy.deepcopy(self)
+        result.values = +result.values
+        return result
+
 
 class PWLinearSqDyadicH1(PWSqDyadic):
     """ Describes a piecewise linear function on a dyadic P1 tringulation of the unit square.
