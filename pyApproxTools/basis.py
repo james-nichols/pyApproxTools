@@ -16,6 +16,7 @@ import scipy.sparse
 import scipy.linalg
 import copy
 import warnings
+import itertools
 
 from pyApproxTools.vector import *
 
@@ -115,7 +116,7 @@ class Basis(object):
         if mask.shape[0] != len(self.vecs):
             raise Exception('Subspace mask must be the same size as length of vectors')
 
-        sub = type(self)(list(compress(self.vecs, mask)), space=self.space, is_orthonormal=self.is_orthonormal)
+        sub = type(self)(list(itertools.compress(self.vecs, mask)), space=self.space, is_orthonormal=self.is_orthonormal)
         if self.G is not None:
             sub.G = self.G[mask,mask]
         return sub

@@ -9,6 +9,7 @@ Code to deal with piece-wise linear functions on triangulations - allows for tre
 
 import numpy as np
 import scipy.sparse
+import itertools
 
 from pyApproxTools.vector import *
 from pyApproxTools.basis import *
@@ -64,7 +65,7 @@ class PWBasis(Basis):
             the same size as the number of vectors. Used for the cross validation """
         if mask.shape[0] != len(self.vecs):
             raise Exception('Subspace mask must be the same size as length of vectors')
-        return type(self)(list(compress(self.vecs, mask)), space=self.space, is_orthonormal=self.is_orthonormal, values_flat=self.values_flat[:,:,mask])
+        return type(self)(list(itertools.compress(self.vecs, mask)), space=self.space, is_orthonormal=self.is_orthonormal, values_flat=self.values_flat[:,:,mask])
 
     def reconstruct(self, c):
         # Build a function from a vector of coefficients
