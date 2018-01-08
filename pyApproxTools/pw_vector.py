@@ -48,12 +48,12 @@ class PWSqDyadic(Vector):
                 self.values = func(x, y)
             ## TODO: put this logic in the values setter routine
             elif values is not None:
-                self.values = values
+                self.values = np.copy(values)
             else:
                 self.values = np.zeros([self.side_len, self.side_len])
         else:
             if values is not None:
-                self.values = values
+                self.values = np.copy(values)
                 
             elif func is not None:
                 raise Exception('{0}: Error - need grid size when specifying function'.format(self.__class__.__name__))
