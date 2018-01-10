@@ -10,6 +10,7 @@ Code to deal with piece-wise linear functions on triangulations - allows for tre
 import numpy as np
 import scipy.sparse
 import itertools
+import random
 
 from pyApproxTools.vector import *
 from pyApproxTools.basis import *
@@ -44,6 +45,12 @@ class PWBasis(Basis):
         elif file_name is not None:
             self.load(file_name)
     
+    def shuffle_vectors(self):
+        random.shuffle(self.vecs)
+        for i, vec in enumerate(self.vecs):
+            self.values_flat[:,:,i] = vec.values
+        self.G = None
+
     def add_vector(self, vec, incr_ortho=False, check_ortho=True):
         """ Add just one vector, so as to make the new Grammian calculation quick """
         super().add_vector(vec, incr_ortho=incr_ortho, check_ortho=check_ortho)

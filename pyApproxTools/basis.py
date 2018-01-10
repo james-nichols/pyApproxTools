@@ -14,6 +14,7 @@ import numpy as np
 import scipy as sp
 import scipy.sparse 
 import scipy.linalg
+import random
 import copy
 import warnings
 import itertools
@@ -101,7 +102,11 @@ class Basis(object):
 
         # Unfortunately there's no incremental SVD solution that I know of...
         self.U = self.V = self.S = None
-        
+
+    def shuffle_vectors(self):
+        random.shuffle(self.vecs)
+        self.G = None
+
     def subspace(self, indices):
         """ Select a subspace corresponding to a subset of the basis, where indices is a Slice object """
         sub = type(self)(self.vecs[indices], space=self.space, is_orthonormal=self.is_orthonormal)
