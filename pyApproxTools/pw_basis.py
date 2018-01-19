@@ -75,7 +75,7 @@ class PWBasis(Basis):
         return type(self)(list(itertools.compress(self.vecs, mask)), space=self.space, is_orthonormal=self.is_orthonormal, values_flat=self.values_flat[:,:,mask])
 
     def reconstruct(self, c):
-        # Build a function from a vector of coefficients
+        """ Build a function from a vector of coefficients """
         u_p = type(self.vecs[0])((c * self.values_flat[:,:,:self.n]).sum(axis=2)) 
         return u_p
 
