@@ -14,6 +14,7 @@ This submodule defines a variety of greedy algorithms, using the basis class
 import numpy as np
 import copy
 import time
+import warnings
 
 from pyApproxTools.vector import *
 from pyApproxTools.pw_vector import *
@@ -408,6 +409,21 @@ class MeasBasedGreedy(GreedyApprox):
     @property
     def m(self):
         return self.Wm.n
+    
+    def reset_u(self, u):
+        if self.remove:
+            warnings.warn('Resetting greedy constructor with dictionary removal - \
+                           dictionary is of length {0}'.format(len(self.dictionary)))
+
+        # This is to reset with a new u but same dictionary dots, save lots of time...
+        self.w = self.Wm.project(u)
+        self.Vn = type(self.Vn)()
+        self.Vn.make_grammian()
+        self.BP = None
+        self.beta = np.zeros(self.m)
+
+        self.sel_crit = np.array([])
+        self.dict_sel = np.array([], dtype=np.int32)
 
     def construct_to_n(self, n_goal):
 
@@ -492,6 +508,21 @@ class MeasBasedOMP(GreedyApprox):
     @property
     def m(self):
         return self.Wm.n
+ 
+    def reset_u(self, u):
+        if self.remove:
+            warnings.warn('Resetting greedy constructor with dictionary removal - \
+                           dictionary is of length {0}'.format(len(self.dictionary)))
+
+        # This is to reset with a new u but same dictionary dots, save lots of time...
+        self.w, self.w_coeffs = self.Wm.project(u, return_coeffs=True)
+        self.Vn = type(self.Vn)()
+        self.Vn.make_grammian()
+        self.BP = None
+        self.beta = np.zeros(self.m)
+
+        self.sel_crit = np.array([])
+        self.dict_sel = np.array([], dtype=np.int32)
 
     def construct_to_n(self, n_goal):
 
@@ -569,6 +600,21 @@ class MeasBasedPP(GreedyApprox):
     @property
     def m(self):
         return self.Wm.n
+ 
+    def reset_u(self, u):
+        if self.remove:
+            warnings.warn('Resetting greedy constructor with dictionary removal - \
+                           dictionary is of length {0}'.format(len(self.dictionary)))
+
+        # This is to reset with a new u but same dictionary dots, save lots of time...
+        self.w, self.w_coeffs = self.Wm.project(u, return_coeffs=True)
+        self.Vn = type(self.Vn)()
+        self.Vn.make_grammian()
+        self.BP = None
+        self.beta = np.zeros(self.m)
+
+        self.sel_crit = np.array([])
+        self.dict_sel = np.array([], dtype=np.int32)
 
     def construct_to_n(self, n_goal):
 
