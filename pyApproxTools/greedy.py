@@ -330,7 +330,7 @@ class GreedyApprox(object):
         p_V_d = np.zeros(len(self.dictionary))
         # We go through the dictionary and find the max of perp
         for j, v in enumerate(self.dictionary):
-            v_perp = v - self.Vn.project(v)
+            v_perp = (v - self.Vn.project(v)) / v.norm()
             p_V_d[j] = v_perp.norm()
         
         if np.all(np.isclose(p_V_d, 0.0, atol=_LD_ATOL)):
