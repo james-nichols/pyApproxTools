@@ -18,7 +18,7 @@ def make_soln(points, fem_div, field_div, a_bar=1.0, c=0.5, f=1.0, verbose=False
         fem_solver.solve()
         solns.append(fem_solver.u)
         
-    return solns, fieldsnp.random.seed(3)
+    return solns, fields
 
 fem_div = 7
 
@@ -49,7 +49,6 @@ Wm_rand, Wloc = pat.make_pw_local_avg_random_basis(m=m, div=fem_div, width=local
 Wm_rand = Wm_rand.orthonormalise()
 
 N = int(1e4)
-np.random.seed(1)
 dict_basis, dict_fields = pat.make_pw_reduced_basis(N, field_div, fem_div, a_bar=a_bar, c=c, f=1.0, verbose=False)
 dictionary = dict_basis.vecs
 
