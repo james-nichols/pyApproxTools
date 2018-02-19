@@ -52,15 +52,11 @@ N = int(1e4)
 dict_basis, dict_fields = pat.make_pw_reduced_basis(N, field_div, fem_div, a_bar=a_bar, c=c, f=1.0, verbose=False)
 dictionary = dict_basis.vecs
 
-
 Vn_sin = pat.make_pw_sin_basis(div=fem_div, N=8)
 Vn_red, Vn_red_fields = pat.make_pw_reduced_basis(m, field_div, fem_div, a_bar=a_bar, c=c, f=1.0, verbose=False)
 
 g = pat.GreedyApprox(dictionary, Vn=pat.PWBasis(), verbose=False)
 g.construct_to_n(m)
-
-generic_Vns = [Vn_sin, Vn_red, g.Vn]
-generic_Vns_labels = ['Sinusoid', 'Reduced', 'PlainGreedy']
 
 for Vn, label in zip(generic_Vns, generic_Vns_labels):
     Vn.save('results/' + label + '_Basis')
@@ -89,7 +85,37 @@ for Wm, Wm_label in zip([Wm_reg, Wm_rand], ['Reg', 'Rand']):
             alg.Vn.save('results/' + Vn_label + '_' + Wm_label + '_{0}_Basis'.format(i))
             adapted_Vns[-1][-1].append(alg.Vn) 
 
-stats = np.zeros([6, 2, 5, n_us, m]) # 6 stats, 2 Wms, 5 Vns (sin, red, greedy, omp, pp)
+
+N = int(1e3)
+np.random.seed(1)
+dict_basis_small, dict_fields = pat.make_pw_reduced_basis(N, field_div, fem_div, a_bar=a_bar, c=c, f=1.0, verbose=False)
+dict_basis_small.make_grammian()
+
+lam, V = np.linalg.eigh(dict_basis_small.G)
+PCA_vecs = []
+for i, v in enumerate(np.flip(V.T, axis=0)[:m]):
+    vec = dict_basis_small.reconstruct(v)
+    PCA_vecs.append(vec / vec.norm())
+
+Vn_PCA = pat.PWBasis(PCA_vecs)
+
+# New! Make a PCA basis
+N = int(1e3)
+dict_basis_small, dict_fields = pat.make_pw_reduced_basis(N, field_div, fem_div, a_bar=a_bar, c=c, f=1.0, verbose=False)
+dict_basis_small.make_grammian()
+
+lam, V = np.linalg.eigh(dict_basis_small.G)
+PCA_vecs = []
+for i, v in enumerate(V.T[:m]):
+    PCA_vecs.append(dict_basis_small.reconstruct(v))
+
+Vn_PCA = pat.PWBasis(PCA_vecs)
+
+generic_Vns = [Vn_sin, Vn_red, g.Vn, Vn_PCA]
+generic_Vns_labels = ['Sinusoid', 'Reduced', 'PlainGreedy', 'PCA']
+
+
+stats = np.zeros([6, 2, 6, n_us, m]) # 6 stats, 2 Wms, 5 Vns (sin, red, greedy, omp, pp)
 
 for i, (Wm, Wm_label) in enumerate(zip([Wm_reg, Wm_rand], ['Reg grid', 'Random'])):
     
