@@ -91,29 +91,27 @@ np.random.seed(1)
 dict_basis_small, dict_fields = pat.make_pw_reduced_basis(N, field_div, fem_div, a_bar=a_bar, c=c, f=1.0, verbose=False)
 dict_basis_small.make_grammian()
 
-lam, V = np.linalg.eigh(dict_basis_small.G)
-PCA_vecs = []
+cent = dict_basis_small.reconstruct(np.ones(N) / N)
+
+import copy
+cent_vecs = copy.deepcopy(dict_basis_small.vecs)
+for i in range(len(cent_vecs)):
+    cent_vecs[i] = cent_vecs[i] - cent
+
+dict_basis_small_cent = pat.PWBasis(cent_vecs)
+dict_basis_small_cent.make_grammian()
+
+lam, V = np.linalg.eigh(dict_basis_small_cent.G)
+PCA_vecs = [cent]
 for i, v in enumerate(np.flip(V.T, axis=0)[:m]):
-    vec = dict_basis_small.reconstruct(v)
+    vec = dict_basis_small_cent.reconstruct(v)
     PCA_vecs.append(vec / vec.norm())
 
 Vn_PCA = pat.PWBasis(PCA_vecs)
 
-# New! Make a PCA basis
-N = int(1e3)
-dict_basis_small, dict_fields = pat.make_pw_reduced_basis(N, field_div, fem_div, a_bar=a_bar, c=c, f=1.0, verbose=False)
-dict_basis_small.make_grammian()
-
-lam, V = np.linalg.eigh(dict_basis_small.G)
-PCA_vecs = []
-for i, v in enumerate(V.T[:m]):
-    PCA_vecs.append(dict_basis_small.reconstruct(v))
-
-Vn_PCA = pat.PWBasis(PCA_vecs)
 
 generic_Vns = [Vn_sin, Vn_red, g.Vn, Vn_PCA]
 generic_Vns_labels = ['Sinusoid', 'Reduced', 'PlainGreedy', 'PCA']
-
 
 stats = np.zeros([6, 2, 6, n_us, m]) # 6 stats, 2 Wms, 5 Vns (sin, red, greedy, omp, pp)
 
