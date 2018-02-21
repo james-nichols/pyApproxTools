@@ -58,10 +58,36 @@ Vn_red, Vn_red_fields = pat.make_pw_reduced_basis(m, field_div, fem_div, a_bar=a
 g = pat.GreedyApprox(dictionary, Vn=pat.PWBasis(), verbose=False)
 g.construct_to_n(m)
 
-for Vn, label in zip(generic_Vns, generic_Vns_labels):
-    Vn.save('results/' + label + '_Basis')
+N = int(1e3)
+np.random.seed(1)
+dict_basis_small, dict_fields = pat.make_pw_reduced_basis(N, field_div, fem_div, a_bar=a_bar, c=c, f=1.0, verbose=False)
+dict_basis_small.make_grammian()
+
+cent = dict_basis_small.reconstruct(np.ones(N) / N)
 
 import copy
+
+cent_vecs = copy.deepcopy(dict_basis_small.vecs)
+for i in range(len(cent_vecs)):
+    cent_vecs[i] = cent_vecs[i] - cent
+
+dict_basis_small_cent = pat.PWBasis(cent_vecs)
+dict_basis_small_cent.make_grammian()
+
+lam, V = np.linalg.eigh(dict_basis_small_cent.G)
+PCA_vecs = [cent]
+for i, v in enumerate(np.flip(V.T, axis=0)[:m]):
+    vec = dict_basis_small_cent.reconstruct(v)
+    PCA_vecs.append(vec / vec.norm())
+
+Vn_PCA = pat.PWBasis(PCA_vecs)
+
+
+generic_Vns = [Vn_sin, Vn_red, g.Vn, Vn_PCA]
+generic_Vns_labels = ['Sinusoid', 'Reduced', 'PlainGreedy', 'PCA']
+
+for Vn, label in zip(generic_Vns, generic_Vns_labels):
+    Vn.save('results/' + label + '_Basis')
 
 adapted_Vns = []
 adapted_Vns_labels = ['MBOMP', 'MBPP']
@@ -85,33 +111,6 @@ for Wm, Wm_label in zip([Wm_reg, Wm_rand], ['Reg', 'Rand']):
             alg.Vn.save('results/' + Vn_label + '_' + Wm_label + '_{0}_Basis'.format(i))
             adapted_Vns[-1][-1].append(alg.Vn) 
 
-
-N = int(1e3)
-np.random.seed(1)
-dict_basis_small, dict_fields = pat.make_pw_reduced_basis(N, field_div, fem_div, a_bar=a_bar, c=c, f=1.0, verbose=False)
-dict_basis_small.make_grammian()
-
-cent = dict_basis_small.reconstruct(np.ones(N) / N)
-
-import copy
-cent_vecs = copy.deepcopy(dict_basis_small.vecs)
-for i in range(len(cent_vecs)):
-    cent_vecs[i] = cent_vecs[i] - cent
-
-dict_basis_small_cent = pat.PWBasis(cent_vecs)
-dict_basis_small_cent.make_grammian()
-
-lam, V = np.linalg.eigh(dict_basis_small_cent.G)
-PCA_vecs = [cent]
-for i, v in enumerate(np.flip(V.T, axis=0)[:m]):
-    vec = dict_basis_small_cent.reconstruct(v)
-    PCA_vecs.append(vec / vec.norm())
-
-Vn_PCA = pat.PWBasis(PCA_vecs)
-
-
-generic_Vns = [Vn_sin, Vn_red, g.Vn, Vn_PCA]
-generic_Vns_labels = ['Sinusoid', 'Reduced', 'PlainGreedy', 'PCA']
 
 stats = np.zeros([6, 2, 6, n_us, m]) # 6 stats, 2 Wms, 5 Vns (sin, red, greedy, omp, pp)
 
