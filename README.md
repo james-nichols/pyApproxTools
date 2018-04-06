@@ -12,9 +12,9 @@ So what approach would we want to use if we wanted to solve a simple diffusion e
 
 ![pde](http://latex.codecogs.com/gif.latex?-\nabla\cdot(a(x)\nabla&space;u(u))=f(x)) 
 
-where ![a](http://latex.codecogs.com/gif.latex?a(x)) and ![f](http://latex.codecogs.com/gif.latex?latex=f(x)) are given and we want to solve for ![u](http://latex.codecogs.com/gif.latex?u)?
+where ![a](http://latex.codecogs.com/gif.latex?a(x)) and ![f](http://latex.codecogs.com/gif.latex?f(x)) are given and we want to solve for ![u](http://latex.codecogs.com/gif.latex?u)?
 
-First a discretisation, via Galerkin projection, is used. This can be a triangulation or some other orthonormal basis. This requires your input. Pre-implemented examples are FEM triangulations, for example 
+First a discretisation, via Galerkin projection, is used. This can be a triangulation or some other orthonormal basis. This requires your input. Pre-implemented examples are FEM triangulations in ![H1](http://latex.codecogs.com/gif.latex?H^1_0), for example 
 
 ```
     function_space = pat.FEM(nodes = node_locs, norm=pat.H1_0)
