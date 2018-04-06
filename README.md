@@ -1,5 +1,51 @@
 # ApproxTools
-### A Pythonic library of tools for numerical and functional analysis, and solving PDEs
+=============
+### A Pythonic library of tools for numerical and functional analysis, and solving PDEs, that treats users like adults
+
+Mathematics is messy. But the code doesn't have to be.
+
+** Disclaimer: _This ReadMe is more of an aspirational manifesto than an actual guide. Seeing as I'm the only one really using this code still (until it's ready to really be launched, I'm using the Readme as a kind of ideas scratch space)_**
+
+Linear operators in functional analysis boil down to matrices in any approximation sense. This is a library that extends helps build, manipulate, and solve such linear operators using inbuilt operators, particularly ```@```. There is planned support for a variety of dot-products, enabling analysis in a variety of function spaces common in numerical analysis, for example the Sobolev spaces $H^1$ etc...
+
+So what approach would we want to use if we wanted to solve a simple diffusion equation like $-\nabla \cdot(a(x) \nabla u(u)) = f(x)$, where $a$ and $f$ are given and we want to solve for $u$?
+
+First a discretisation, via Galerkin projection, is used. This can be a triangulation or some other orthonormal basis. This requires your input. Pre-implemented examples are FEM triangulations, for example 
+
+```
+    function_space = pat.FEM(nodes = node_locs, norm=pat.H1_0)
+```
+
+Then we can construct the operator. The operator ```D```, defined in the library, represents $\nabla$ on the projection, we can 
+```
+    D = pat.linear_operators.nabla(function_space)
+```
+The functions $a$ and $f$ must be defined in some way on this triangulation
+```
+    f = pat.Function(np.ones(function_space.shape), function_space)
+    a = pat.Function(np.random.random(function_space.shape), function_space)
+```
+
+Then we can define ``` A = - D @ a @ D ```, and solving the PDE is now the system ``` A @ u = f ```, which we have direct access to by calling 
+
+``` 
+    A = - D @ a @ D
+    u_raw = np.linalg.solve(A.matrix_rep(), f.vector_rep()) 
+    u = pat.Function(u_raw, function_space)
+```
+
+The advantages of this approach are that it gives the user control of many aspects of the problem. Different PDEs and operators all have their unique issues and instabilities. There is a variety of decompositions or techniques that trained numerical analysts might want to use, but don't want to have to re-invent the wheel of all this support machinery.
+
+Many other PDE libraries, although highly powerful and capable of things like adaptive mesh routines, whizz-bang solvers, forget-about-the-details interpolators, hide various intermediary steps that could be of use to mathematicians.
+
+It is hoped that this library will bridge the gap between numerical analysts who want to get their hands dirty and analyse their algorithms and methods, and practitioners who just want effective PDE solutions with clean Pythonic syntax and stright-forward error reporting.
+
+Have you got your own tricky hyperbolic operator for which you want a custom discretisation scheme that balances gawd-knows-what terms? No problem - just bake the scheme in the the ```pat.Operator``` class using templates. You are guaranteed an operator which you can then combine with others and get the expected linear schemes, no funny business or hidden optimisation.
+
+---
+
+## The old Readme
+
 
 This library abstracts some of the concepts sometimes found in approximation theory and solving PDEs. In particular, it can perform abstract Hilbert space operations for useful function spaces like the Sobolev space H1.
 
