@@ -1,5 +1,5 @@
 # pyApproxTools
-===
+
 ### A Pythonic library of tools for numerical and functional analysis, and solving PDEs, that treats users like adults
 
 Mathematics is messy. But the code doesn't have to be.
@@ -8,7 +8,7 @@ Mathematics is messy. But the code doesn't have to be.
 
 Functions and linear operators in functional analysis boil down to vectors and matrices in any numerical approximation. This is a library that extends helps build, manipulate, and solve equations of such functions and linear operators using Pythonic particularly ```@```. There is planned support for a variety of dot-products, enabling analysis in a variety of function spaces common in numerical analysis, for example the Sobolev spaces $H^1$ etc...
 
-So what approach would we want to use if we wanted to solve a simple diffusion equation like (https://www.codecogs.com/eqnedit.php?latex=-\nabla\cdot(a(x)\nabla u(u))=f(x)), where (https://www.codecogs.com/eqnedit.php?latex=a(x)) and (https://www.codecogs.com/eqnedit.php?latex=f(x)) are given and we want to solve for (https://www.codecogs.com/eqnedit.php?latex=u)?
+So what approach would we want to use if we wanted to solve a simple diffusion equation like !(https://www.codecogs.com/eqnedit.php?latex=-\nabla\cdot(a(x)\nabla u(u))=f(x)), where !(https://www.codecogs.com/eqnedit.php?latex=a(x)) and !(https://www.codecogs.com/eqnedit.php?latex=f(x)) are given and we want to solve for !(https://www.codecogs.com/eqnedit.php?latex=u)?
 
 First a discretisation, via Galerkin projection, is used. This can be a triangulation or some other orthonormal basis. This requires your input. Pre-implemented examples are FEM triangulations, for example 
 
@@ -16,7 +16,7 @@ First a discretisation, via Galerkin projection, is used. This can be a triangul
     function_space = pat.FEM(nodes = node_locs, norm=pat.H1_0)
 ```
 
-Then we can construct the operator. The operator ```D```, defined in the library, represents (https://www.codecogs.com/eqnedit.php?latex=\nabla) on the projection, we can 
+Then we can construct the operator. The operator ```D```, defined in the library, represents !(https://www.codecogs.com/eqnedit.php?latex=\nabla) on the projection, we can 
 ```
     D = pat.linear_operators.nabla(function_space)
 ```
