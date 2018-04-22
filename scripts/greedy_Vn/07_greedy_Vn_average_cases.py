@@ -82,12 +82,13 @@ for i, v in enumerate(np.flip(V.T, axis=0)[:m]):
 
 Vn_PCA = pat.PWBasis(PCA_vecs)
 
-
 generic_Vns = [Vn_sin, Vn_red, g.Vn, Vn_PCA]
 generic_Vns_labels = ['Sinusoid', 'Reduced', 'PlainGreedy', 'PCA']
 
 for Vn, label in zip(generic_Vns, generic_Vns_labels):
     Vn.save('results/' + label + '_Basis')
+
+np.save('PCA_sigs', lam)
 
 adapted_Vns = []
 adapted_Vns_labels = ['MBOMP', 'MBPP']
