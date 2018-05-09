@@ -6,7 +6,7 @@ Mathematics is messy. But the code doesn't have to be.
 
 **Disclaimer: _This ReadMe is more of an aspirational manifesto than an actual guide. Seeing as I'm the only one really using this code still (until it's ready to really be launched, I'm using the Readme as a kind of ideas scratch space)_**
 
-Functions and linear operators in functional analysis boil down to vectors and matrices in any numerical approximation. This is a library that extends helps build, manipulate, and solve equations of such functions and linear operators using Pythonic particularly ```@```. There is planned support for a variety of dot-products, enabling analysis in a variety of function spaces common in numerical analysis, for example the Sobolev spaces ![H1](http://latex.codecogs.com/gif.latex?H^1) etc...
+Functions and linear operators in functional analysis boil down to vectors and matrices in any numerical approximation. This is a library that essentially mimics the behaviour of NumPy, but allows for different function spaces by extending the notion of what a dot product is. Thus the library helps build, manipulate, and solve equations of such functions and linear operators using Pythonic operations, particularly the (relatively) new matrix multiplication operator ```@```. There is planned support for a variety of dot-products, enabling analysis in a variety of function spaces common in numerical analysis, for example the Sobolev spaces ![H1](http://latex.codecogs.com/gif.latex?H^1) etc...
 
 So what approach would we want to use if we wanted to solve a simple diffusion equation like 
 
@@ -46,6 +46,10 @@ It is hoped that this library will bridge the gap between numerical analysts who
 
 Have you got your own tricky hyperbolic operator for which you want a custom discretisation scheme that balances gawd-knows-what terms? No problem - just bake the scheme in the the ```pat.Operator``` class using templates. You are guaranteed an operator which you can then combine with others and get the expected linear schemes, no funny business or hidden optimisation.
 
+### Spaces, Bases, and Operators
+
+For design purposes, we need to differentiate between these concepts. An object of type ```Space``` is analogous to what we'd traditionally call a basis in mathematical terminology: it will be a collection of functions with a _pre-defined inner-product_ between them. All vectors, the inner-products between these vectors, and then operators and other general bases, will be expressed in terms of this "fundamental basis" defined in ```Space```. To guide the intuition, the ```Space``` object will most likely contain the hat functions on a triangulation that would be used in a finite element method calculation. However, we can also allow... 
+
 ---
 
 ## The old Readme
@@ -58,3 +62,8 @@ Orthogonalisation, approximation, data-assimilation, FEM solution and various ot
 At present the library has two spaces on which it can perform these operations
 * The space of exactly represented trigonemtric, delta, and polynomial functions in H1
 * The space of piece-wise linear functions on a triangulation in H1 in two dimensions
+
+## TODO List
+
+* Plot funcs with the correct triangulation
+* Full linear operators as above
