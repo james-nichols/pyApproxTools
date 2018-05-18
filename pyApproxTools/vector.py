@@ -40,7 +40,7 @@ import copy
 
 import pdb
 
-__all__ = ['AlgebraDict', 'Element', 'H1UIElement', 'H1UIDelta', 'H1UIAvg', 'H1UISin', 'H1UIPoly', 'Vector', 'FuncVector']
+__all__ = ['AlgebraDict', 'Element', 'L2UIElement', 'L2UIHeaviside', 'L2UISin', 'L2UIAvg', 'H1UIElement', 'H1UIDelta', 'H1UIAvg', 'H1UISin', 'H1UIPoly', 'Vector', 'FuncVector']
 
 class AlgebraDict(collections.defaultdict):
     """ A dictionary with algegraeic capability, used for exact function/vector representation """
@@ -174,6 +174,157 @@ class H1UIElement(Element):
     def latex_str(self, params):
         return r'\mathrm{func}_{{{{0}}}}(x)'.format(params)
 
+class L2UIElement(Element):
+    """ The class of all elements that live in L2 on the Unit Interval """
+    def __init__(self):
+        super().__init__()
+        self.d = 1
+        self.domain = (0,1)
+        self.space = 'L2'
+
+    def latex_str(self, params):
+        return r'\mathrm{{func}}_{{{{0}}}}(x)'.format(params)
+
+
+class L2UIHeaviside(L2UIElement):
+    
+    def evaluate(self, params, x):
+        m = params.keys_array()
+        c = params.values_array()
+
+        return c * (x[:,np.newaxis] < m)
+
+    def dot(self, right, left_params, right_params):
+        return right._heav_dot(self, left_params, right_params)
+
+    def _sin_dot(self, left, left_params, right_params):
+        lc = left_params.values_array()[:,np.newaxis]
+        lp = left_params.keys_array()[:,np.newaxis]
+        rc = right_params.values_array()
+        rp = right_params.keys_array()
+
+        return (lc * rc * (1.0 - np.cos(np.pi * lp * rp))/(np.pi * lp)).sum()
+
+    def _heav_dot(self, left, left_params, right_params):
+        return self._self_dot(left_params, right_params)
+
+    def _self_dot(self, left_params, right_params):
+        lc = left_params.values_array()[:,np.newaxis]
+        lp = left_params.keys_array()[:,np.newaxis]
+        rc = right_params.values_array()
+        rp = right_params.keys_array()
+
+        return (lc * rc * ( (lp >= rp) * rp + (lp < rp) * lp)).sum()
+
+class L2UISin(L2UIElement):
+
+    def evaluate(self, params, x):
+        m = params.keys_array()
+        c = params.values_array()
+        return c * np.sin(math.pi * np.outer(x, m))
+    
+    def dot(self, right, left_params, right_params):
+        return right._sin_dot(self, left_params, right_params)
+
+    def _heav_dot(self, left, left_params, right_params):
+        lc = left_params.values_array()[:,np.newaxis]
+        lp = left_params.keys_array()[:,np.newaxis]
+        rc = right_params.values_array()
+        rp = right_params.keys_array()
+
+        return (lc * rc * (1.0 - np.cos(np.pi * lp * rp))/(np.pi * rp)).sum()
+        
+    def _sin_dot(self, left, left_params, right_params):
+        return self._self_dot(left_params, right_params)
+
+    def _self_dot(self, left_params, right_params):
+        lc = left_params.values_array()[:,np.newaxis]
+        lp = left_params.keys_array()[:,np.newaxis]
+        rc = right_params.values_array()
+        rp = right_params.keys_array()
+
+        return (lc * rc * 0.5 * (lp == rp)).sum()
+    
+    def _avg_dot(self, left, left_params, right_params):
+        lc = left_params.values_array()[:,np.newaxis]
+        lp = left_params.keys_array()
+        a = lp[:,0][:,np.newaxis]
+        b = lp[:,1][:,np.newaxis]
+        rc = right_params.values_array()
+        rp = right_params.keys_array()
+        
+        return (lc * rc * (np.cos(np.pi * a * rp) - np.cos(np.pi * b * rp)) / (np.pi * rp)).sum()
+
+class L2UIAvg(L2UIElement):
+
+    def evaluate(self, params, x):
+
+        a = params.keys_array()[:,0]
+        b = params.keys_array()[:,1]
+        c = params.values_array()
+
+        if any(a > b):
+            raise Exception('Some local-average intervals arprint(self.names_array(0))e in reverse, a > b')
+
+        mid = (a <= x[:,np.newaxis]) & (x[:,np.newaxis] < b) #np.greatereq.outer(x, a) & np.less.outer(x, b)
+        
+        return c * mid
+
+    def dot(self, right, left_params, right_params):
+        return right._avg_dot(self, left_params, right_params)
+
+    def _avg_dot(self, left, left_params, right_params):
+        return self._self_dot(left_params, right_params)
+
+    def _heav_dot(self, left, left_params, right_params):
+        lc = left_params.values_array()[:,np.newaxis]
+        lp = left_params.keys_array()[:,np.newaxis]
+        rc = right_params.values_array()
+        ra = right_params.keys_array()[:,0]
+        rb = right_params.keys_array()[:,1]
+
+        return (lr * rc * ((b - a) * (lp <= a) + (b - lp) * (lp > a) * (lp <= b))).sum()
+        
+    def _sin_dot(self, left, left_params, right_params):
+        lc = left_params.values_array()[:,np.newaxis]
+        lp = left_params.keys_array()[:,np.newaxis]
+        rc = right_params.values_array()
+        rp = right_params.keys_array()
+        a = rp[:,0]
+        b = rp[:,1]
+        
+        if any(a >= b): 
+            raise Exception('Some local-average intervals are in reverse or null, a >= b')
+        
+        return (lc * rc * (np.cos(np.pi * a * lp) - np.cos(np.pi * b * lp)) / (np.pi * lp)).sum()
+
+    def _self_dot(self, left_params, right_params):
+        a = left_params.keys_array()[:,0][:,np.newaxis]
+        b = left_params.keys_array()[:,1][:,np.newaxis]
+        lc = left_params.values_array()[:,np.newaxis]
+
+        c = right_params.keys_array()[:,0]
+        d = right_params.keys_array()[:,1]
+        rc = right_params.values_array()
+
+        if any(a >= b) or any(c >= d): 
+            raise Exception('Some local-average intervals are in reverse or null, a >= b')
+        
+        inq_1 = a < c
+        inq_2 = b < d
+        inq_3 = a < d
+        inq_4 = b < c
+
+        # These selections are the only possible combinations of inq_1, 2, 3 and 4 
+        # that don't clash with the requirements that a < b and c < d,
+        # e.g. ~(a < c) & (b < c) => b < a...
+        # Try the logic table if this confuses you...
+        dot = (inq_1 & inq_2 & inq_3 & ~inq_4) * (b - c)
+        dot += (inq_1 & ~inq_2 & inq_3 & ~inq_4) * (d - c)
+        dot += (~inq_1 & inq_2 & inq_3 & ~inq_4) * (b - a)
+        dot += (~inq_1 & ~inq_2 & inq_3 & ~inq_4) * (d - a)
+        
+        return (lc * rc * dot).sum()
 
 class H1UISin(H1UIElement):
 
@@ -397,10 +548,10 @@ class H1UIAvg(H1UIElement):
         rc = right_params.values_array()
         rn = self._normaliser(right_params)
         
-        return ln * lc * rn * rc * (ml * self._inner_aff_avg(a, b, l) \
+        result = ln * lc * rn * rc * (ml * self._inner_aff_avg(a, b, l) \
                                      + mm * self._inner_aff_avg(a, b, m) \
                                      + mh * self._inner_aff_avg(a, b, h))
-        #return np.nan_to_num(result).sum()
+        return np.nan_to_num(result).sum()
     
     def _inner_aff_avg(self, a, b, d):
         result = 0.5 * (0.5 * (b*b - a*a) * (1-d)**3 - (d < b) * 0.25 * (b-d)**4 + (d < a) * 0.25 * (a-d)**4) / (b - a)
@@ -601,7 +752,7 @@ class H1UIHat(H1UIElement):
                 + mm * ((m - 1) * pn - np.sin(n * math.pi * m) / (n * math.pi) ) \
                 + mh * ((h - 1) * pn - np.sin(n * math.pi * h) / (n * math.pi) )) / (n * math.pi)
         result[(l >= 1.0) | (m >= 1.0) | (h >= 1.0)] = 0.0
-        return result
+        return resultnext(iter(self.vecs[-1].elements.values()))
 
     def _avg_dot(self, left, left_params, right_params):
         # avg params
