@@ -283,7 +283,7 @@ class L2UIAvg(L2UIElement):
         ra = right_params.keys_array()[:,0]
         rb = right_params.keys_array()[:,1]
 
-        return (lr * rc * ((b - a) * (lp <= a) + (b - lp) * (lp > a) * (lp <= b))).sum()
+        return (lc * rc * ((b - a) * (lp <= a) + (b - lp) * (lp > a) * (lp <= b))).sum()
         
     def _sin_dot(self, left, left_params, right_params):
         lc = left_params.values_array()[:,np.newaxis]
