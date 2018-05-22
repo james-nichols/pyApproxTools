@@ -192,7 +192,7 @@ class L2UIHeaviside(L2UIElement):
         m = params.keys_array()
         c = params.values_array()
 
-        return c * (x[:,np.newaxis] < m)
+        return c * (x[:,np.newaxis] <= m)
 
     def dot(self, right, left_params, right_params):
         return right._heav_dot(self, left_params, right_params)
@@ -205,6 +205,15 @@ class L2UIHeaviside(L2UIElement):
 
         return (lc * rc * (1.0 - np.cos(np.pi * lp * rp))/(np.pi * lp)).sum()
 
+    def _avg_dot(self, left, left_params, right_params):
+        lc = left_params.values_array()[:,np.newaxis]
+        a = left_params.keys_array()[:,0][:,np.newaxis]
+        b = left_params.keys_array()[:,1][:,np.newaxis]
+        rp = right_params.keys_array()
+        rc = right_params.values_array()
+
+        return (lc * rc * ((b - a) * (b <= rp) + (rp - a) * (rp > a) * (rp <= b))).sum()
+        
     def _heav_dot(self, left, left_params, right_params):
         return self._self_dot(left_params, right_params)
 
@@ -280,18 +289,17 @@ class L2UIAvg(L2UIElement):
         lc = left_params.values_array()[:,np.newaxis]
         lp = left_params.keys_array()[:,np.newaxis]
         rc = right_params.values_array()
-        ra = right_params.keys_array()[:,0]
-        rb = right_params.keys_array()[:,1]
+        a = right_params.keys_array()[:,0]
+        b = right_params.keys_array()[:,1]
 
-        return (lc * rc * ((b - a) * (lp <= a) + (b - lp) * (lp > a) * (lp <= b))).sum()
+        return (lc * rc * ((b - a) * (b <= lp) + (lp - a) * (lp > a) * (lp <= b))).sum()
         
     def _sin_dot(self, left, left_params, right_params):
         lc = left_params.values_array()[:,np.newaxis]
         lp = left_params.keys_array()[:,np.newaxis]
         rc = right_params.values_array()
-        rp = right_params.keys_array()
-        a = rp[:,0]
-        b = rp[:,1]
+        a = right_params.keys_array()[:,0]
+        b = right_params.keys_array()[:,1]
         
         if any(a >= b): 
             raise Exception('Some local-average intervals are in reverse or null, a >= b')
