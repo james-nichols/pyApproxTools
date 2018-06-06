@@ -224,6 +224,8 @@ class PWLinearSqDyadicH1(PWSqDyadic):
 
         super().__init__(values, div, func)
         self.space = 'H1'
+        
+        self._dot_matrix = None
 
     def _side_len(self, d):
         return 2 ** d + 1
@@ -257,19 +259,37 @@ class PWLinearSqDyadicH1(PWSqDyadic):
         u = self.interpolate(d).values
         v = other.interpolate(d).values
 
-        h = 2.0**(-d)
-        n_side = 2**d
-
         # This is du/dy
-        p = 2 * np.ones([n_side, n_side+1])
+        p = 2 * np.ones([self.side_len - 1, self.side_len])
         p[:,0] = p[:,-1] = 1
         dot = (p * (u[:-1,:] - u[1:,:]) * (v[:-1,:] - v[1:,:])).sum()
         # And this is du/dx
-        p = 2 * np.ones([n_side+1, n_side])
+        p = 2 * np.ones([self.side_len, self.side_len - 1])
         p[0,:] = p[-1,:] = 1
         dot = dot + (p * (u[:,1:] - u[:,:-1]) * (v[:,1:] - v[:,:-1])).sum()
         
         return 0.5 * dot # + self.L2_inner(u,v,h)
+    
+    def H1_dot_fast(self, other): # NOT THAT FAST! BUT COULD BE FAST FOR BASIS PROJECTIONS AND TENSOR THINGS...
+        d = max(self.div,other.div)
+        u = self.interpolate(d)
+        v = other.interpolate(d)
+        
+        if self._dot_matrix is None:
+            diag = 4.0 * np.ones(self.side_len*self.side_len)
+            lr_diag = - np.ones(self.side_len*self.side_len)
+
+            # min_diag is below the diagonal, hence deals with element to the left in the FEM grid
+            lr_diag[self.side_len-1::self.side_len] = 0 # These corresponds to edges on left or right extreme
+            lr_diag = lr_diag[:-1]
+
+            ud_diag = - np.ones(self.side_len*self.side_len)
+            ud_diag = ud_diag[self.side_len:]
+            
+            self._dot_matrix = scipy.sparse.diags([diag, lr_diag, lr_diag, ud_diag, ud_diag], [0, -1, 1, -self.side_len, self.side_len]).tocsr()
+
+        return u._values.flatten().T @ u._dot_matrix @ v._values.flatten()
+
 
     def L2_inner_new_proposed(self, u, v, h):
         # u and v are on the same grid / triangulation, so now we do the simple L2
@@ -333,7 +353,7 @@ class PWLinearSqDyadicH1(PWSqDyadic):
         elif interp_div == self.div:
             return self
         else:
-            interp_func = scipy.interpolate.interp2d(self.x_grid, self.y_grid, self.values, kind='linear')
+            interp_func = scipy.interpolate.RectBivariateSpline(self.x_grid, self.y_grid, self.values, kx=1, ky=1)
             return type(self)(interp_func(self._x_grid(self._side_len(interp_div)), self._y_grid(self._side_len(interp_div))), interp_div)
 
     def plot(self, ax, title=None, div_frame=4, alpha=0.5, cmap=cm.jet, show_axes_labels=True):

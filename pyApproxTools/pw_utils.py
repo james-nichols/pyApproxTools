@@ -90,14 +90,17 @@ def make_pw_hat_basis(div):
     h = 2**(-div)
     # We construct the Grammian here explicitly, otherwise it takes *forever*
     # as the grammian is often used in Reisz representer calculations
-    diag = (4.0 + h*h/2.0) * np.ones(side_n*side_n)
-    lr_diag = (h*h/12.0 - 1) * np.ones(side_n*side_n)
+    #diag = (4.0 + h*h/2.0) * np.ones(side_n*side_n)
+    #lr_diag = (h*h/12.0 - 1) * np.ones(side_n*side_n)
+    diag = 4.0 * np.ones(side_n*side_n)
+    lr_diag = - np.ones(side_n*side_n)
 
     # min_diag is below the diagonal, hence deals with element to the left in the FEM grid
     lr_diag[side_n-1::side_n] = 0 # These corresponds to edges on left or right extreme
     lr_diag = lr_diag[:-1]
 
-    ud_diag = (h*h/12.0 - 1) * np.ones(side_n*side_n)
+    #ud_diag = (h*h/12.0 - 1) * np.ones(side_n*side_n)
+    ud_diag = - np.ones(side_n*side_n)
     ud_diag = ud_diag[side_n:]
     
     grammian = scipy.sparse.diags([diag, lr_diag, lr_diag, ud_diag, ud_diag], [0, -1, 1, -side_n, side_n]).tocsr()
