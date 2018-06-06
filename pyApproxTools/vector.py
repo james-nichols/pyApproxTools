@@ -819,9 +819,6 @@ class H1UIPoly(H1UIElement):
     pass
 
 class Vector(object):
-    
-    # Ok new paradigm - use numpy to be a bit faster...
-
     def __init__(self):
         pass
 
