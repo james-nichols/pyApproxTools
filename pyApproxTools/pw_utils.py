@@ -86,9 +86,8 @@ def make_pw_hat_basis(div):
     side_n = 2**div-1
 
     Vn = make_pw_hat_dict(div) 
-    b = PWBasis(Vn, space='H1')
 
-    h = 2 ** (-b.vecs[0].div)
+    h = 2**(-div)
     # We construct the Grammian here explicitly, otherwise it takes *forever*
     # as the grammian is often used in Reisz representer calculations
     diag = (4.0 + h*h/2.0) * np.ones(side_n*side_n)
@@ -102,7 +101,8 @@ def make_pw_hat_basis(div):
     ud_diag = ud_diag[side_n:]
     
     grammian = scipy.sparse.diags([diag, lr_diag, lr_diag, ud_diag, ud_diag], [0, -1, 1, -side_n, side_n]).tocsr()
-    b.G = grammian
+    
+    b = PWBasis(Vn, G=grammian)
     
     return b
 
@@ -126,7 +126,6 @@ def make_pw_hat_rep_dict(div, width=1):
     side_n = 2**div-1
 
     hat_b = make_pw_hat_basis(div=div)
-    hat_b.make_grammian()
 
     # Now we make the representers...
     D = []
@@ -178,7 +177,7 @@ def make_pw_sin_basis(div, N=None):
                 v_i /= v_i.norm()
                 Vn.append(v_i)
 
-    return PWBasis(Vn, space='H1', is_orthonormal=True)
+    return PWBasis(Vn)
 
 
 def make_pw_reduced_basis(n, field_div, fem_div, point_gen=None, space='H1', a_bar=1.0, c=0.5, f=1.0, normalise=False, verbose=False):
@@ -209,7 +208,7 @@ def make_pw_reduced_basis(n, field_div, fem_div, point_gen=None, space='H1', a_b
         if verbose:
             print(str(i), end=' ')
         
-    return PWBasis(Vn, space=space), fields
+    return PWBasis(Vn), fields
 
 def make_pw_local_avg_random_basis(m, div, width=2, bounds=None, bound_prop=1.0, return_map=False):
 
@@ -241,7 +240,6 @@ def make_pw_local_avg_random_basis(m, div, width=2, bounds=None, bound_prop=1.0,
     stencil[0,-1]=stencil[-1,0]=h*h
     
     hat_b = make_pw_hat_basis(div=div)
-    hat_b.make_grammian()
     for i in range(m):
         point = points[i]
 
@@ -287,7 +285,6 @@ def make_local_avg_grid_basis(width_div, spacing_div, div, return_map=False):
     stencil[0,-1]=stencil[-1,0]=h*h
    
     hat_b = make_pw_hat_basis(div=div)
-    hat_b.make_grammian()
 
     for i in range(2**(div - spacing_div)):
         for j in range(2**(div - spacing_div)):

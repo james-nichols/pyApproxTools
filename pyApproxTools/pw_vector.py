@@ -30,6 +30,38 @@ __all__ = ['PWSqDyadic', 'PWLinearSqDyadicH1', 'PWConstantSqDyadicL2']
 
 # TODO: Make dyadic PWLinear a form of "element", that way can combine w/ exact function representations...
 
+class PWVector(Vector):
+    """ This is a "reisz" vector, or one that is defined in terms of a set Reisz basis of functions.
+        The main abstraction is for there to be addition, multiplication, and subtraction all to be
+        defined to apply to the coefficients of the set Reisz basis functions. From here various function types 
+        could inherit, like piece-wise linear functions on general triangulations. Then the benefit is that the 
+        Basis or PWBasis can blindly work on any set of PWVector types that are of equivalent class, and it can dot
+        product, 
+        
+        There will necessarily be a dot-product defined between all the functions in the Reisz basis, so the implementation
+        of a dot-product for any class of vector will be simply be the l2 dot product with the symmetric positive-definite matrix 
+        inside. This is a convenient truth that can make many NumPy operations a whole lot quicker. Also sparsity may well become 
+        a useful ally. 
+        
+        And a final note - we could in fact have PWVector be defined on a "Basis", which kinda makes sense anyhow. In this base-Basis
+        would be P0 or P1 elements on a triangulation for example, or whatever polynomial or wavelet system we wish. Then all
+        vectors are defined in terms of this basis, we have the gram-matrix already figured so the inner-product is straightforward
+        (and hopefully reasonably sparse). Then it comes down to plotting and evaluating, which could be greatly sped up by 
+        "knowing" a bit more about the space spanned by the base-Basis. Ok what exactly do I mean? Something like this:
+
+        v = sum c[i] * h[i]
+
+        i.e. v "has" a basis that it is expressed in, but then the v[i]'s a fundamental and have their dot-product already defined. 
+        We might want some sort of interpolation for the various Dyadic levels or for general square-grid refinement... this would
+        require more "knowledge" about the base-Basis than we'd want the basis to know, so yes, maybe we want there to be a sub-type
+        basis that is of square-dyadic type or something like that.
+
+        OK SUPER FINAL LAST NOTE: It seems we define operators -> representers by doing a Galerkin projection often 
+        enough (see make_local_avg_grid_basis etc...). This is something a basis of fundamental vectors should be fine doing.
+
+        Ok. Enough ranting - we need to implement all this. """
+    pass
+
 class PWSqDyadic(Vector):
 
     def __init__(self, values=None, div=None, func=None):
