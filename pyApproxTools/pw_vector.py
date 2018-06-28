@@ -224,7 +224,7 @@ class PWLinearSqDyadicH1(PWSqDyadic):
 
         super().__init__(values, div, func)
         self.space = 'H1'
-        
+      
         self._dot_matrix = None
 
     def _side_len(self, d):
@@ -251,30 +251,29 @@ class PWLinearSqDyadicH1(PWSqDyadic):
             # TODO: make this a warning rather than exception
             raise Exception('Dot product can only be between compatible dyadic functions')
     
-    def H1_dot(self, other):
+    def H1_dot_slow(self, other):
         """ Compute the H1_0 dot product with another DyadicPWLinear function
             automatically interpolates the coarser function """
         
         d = max(self.div,other.div)
         u = self.interpolate(d).values
         v = other.interpolate(d).values
+        sn = u.shape[0] 
 
         # This is du/dy
-        p = 2 * np.ones([self.side_len - 1, self.side_len])
+        p = 2 * np.ones([sn - 1, sn])
         p[:,0] = p[:,-1] = 1
         dot = (p * (u[:-1,:] - u[1:,:]) * (v[:-1,:] - v[1:,:])).sum()
         # And this is du/dx
-        p = 2 * np.ones([self.side_len, self.side_len - 1])
+        p = 2 * np.ones([sn, sn - 1])
         p[0,:] = p[-1,:] = 1
         dot = dot + (p * (u[:,1:] - u[:,:-1]) * (v[:,1:] - v[:,:-1])).sum()
         
         return 0.5 * dot # + self.L2_inner(u,v,h)
     
-    def H1_dot_fast(self, other): # NOT THAT FAST! BUT COULD BE FAST FOR BASIS PROJECTIONS AND TENSOR THINGS...
-        d = max(self.div,other.div)
-        u = self.interpolate(d)
-        v = other.interpolate(d)
-        
+    @property
+    def dot_matrix(self):
+        # TODO: this "dot_matrix" should really be the Grammian of some "basis" or "space" in terms of which the vector is defined 
         if self._dot_matrix is None:
             diag = 4.0 * np.ones(self.side_len*self.side_len)
             lr_diag = - np.ones(self.side_len*self.side_len)
@@ -286,10 +285,20 @@ class PWLinearSqDyadicH1(PWSqDyadic):
             ud_diag = - np.ones(self.side_len*self.side_len)
             ud_diag = ud_diag[self.side_len:]
             
-            self._dot_matrix = scipy.sparse.diags([diag, lr_diag, lr_diag, ud_diag, ud_diag], [0, -1, 1, -self.side_len, self.side_len]).tocsr()
+            self._dot_matrix = scipy.sparse.diags([diag, lr_diag, lr_diag, ud_diag, ud_diag], [0, -1, 1, -self.side_len, self.side_len])
 
-        return u._values.flatten().T @ u._dot_matrix @ v._values.flatten()
+        return self._dot_matrix
 
+    def H1_dot(self, other):
+        """ Compute the H1_0 dot product with another DyadicPWLinear function
+            automatically interpolates the coarser function """
+        d = max(self.div,other.div)
+        u = self.interpolate(d)
+        v = other.interpolate(d)
+        if u is self:
+            return u._values.flatten().T @ u.dot_matrix.dot(v._values.flatten())
+        elif v is other:
+            return u._values.flatten().T @ v.dot_matrix.dot(v._values.flatten())
 
     def L2_inner_new_proposed(self, u, v, h):
         # u and v are on the same grid / triangulation, so now we do the simple L2
