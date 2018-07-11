@@ -196,6 +196,9 @@ class Basis(object):
             else:
                 raise ValueError(self.__class__.__name__ + ': left basis must be transposed and right not')
 
+        else:
+            raise ValueError('{0}: unsupported @ compatibility'.format(self.__class__.__name__))
+
     def __rmatmul__(self, other):
         if self._is_herm_trans:
             return self._matmul(other)
@@ -247,7 +250,28 @@ class Basis(object):
                 self._G[self.n-1, i] = self._G[i, self.n-1] = self._vecs[-1].dot(self._vecs[i])
 
         self._U = self._V = self._S = None
-    
+   
+    def append(self, other):
+        """ add multiple vectors, no Grammian update """
+
+        if isinstance(other, type(self[0])):
+            self.add_vec(other)
+        elif isinstance(other, Basis) and isinstance(other[0], type(self[0])):
+            self._vecs.extend(other._vecs)
+        
+            self._G = np.pad(self.G, ((0,len(other)),(0,len(other))), 'constant')
+            self._vec_is_new = np.pad(self._vec_is_new, (0,len(other)), 'constant', constant_values=True)
+
+            self._U = self._V = self._S = None
+
+        elif isinstance(other, list) and isinstance(other[0], type(self[0])):
+            self._vecs.extend(other)
+
+            self._G = np.pad(self.G, ((0,len(other)),(0,len(other))), 'constant')
+            self._vec_is_new = np.pad(self._vec_is_new, (0,len(other)), 'constant', constant_values=True)
+
+            self._U = self._V = self._S = None
+
     def add_vec_orthogonalise(self, vec):
         """ add a vector - if it is orthonormal already just add it, other wise do one gram-schmidt step,
             which if the basis is already orthogonal, will result in an augmented orthonormal basis """
