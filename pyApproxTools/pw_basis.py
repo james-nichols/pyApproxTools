@@ -58,14 +58,15 @@ class PWBasis(Basis):
                 sub._G = self._G[idx, idx]
             return sub
 
-        elif hasattr(idx, '__len__') and len(idx) == len(self): # NOT CONFIDENT THAT THIS WORKS...
-            sub = type(self)(list(itertools.compress(self._vecs, mask)), values_flat=self._values_flat[:,:,mask])
+        elif hasattr(idx, '__len__') and len(idx) == len(self): 
+            # NOT CONFIDENT THAT THIS WORKS... but in this case idx is a boolean mask...
+            sub = type(self)(list(itertools.compress(self._vecs, idx)), values_flat=self._values_flat[:,:,idx])
             if not np.any(self._vec_is_new):
-                sub._G = self._G[mask,mask]
+                sub._G = self._G[idx,idx]
             return sub
 
         else:
-            return TypeError(self.__name__ + ': idx type incorrect')
+            raise TypeError(self.__class__.__name__ + ': idx type incorrect')
 
     def __setitem__(self, i, v):
         super().__setitem__(i, v)
@@ -76,13 +77,27 @@ class PWBasis(Basis):
 
     def add_vec(self, vec):
         """ Add just one vector, so as to make the new Grammian calculation quick """
-        super().add_vector(vec)
+        super().add_vec(vec)
 
         if self._values_flat is not None:
             self._values_flat = np.pad(self._values_flat, ((0,0),(0,0),(0,self.n-self._values_flat.shape[2])), 'constant')
             self._values_flat[:,:,self.n-1] = self._vecs[-1].values
         else:
             self._values_flat = self._vecs[-1].values[:,:,np.newaxis]
+
+    def append(self, other):
+        """ Add just one vector, so as to make the new Grammian calculation quick """
+        super().append(other)
+    
+        if self._values_flat is not None:
+            old_n = self._values_flat.shape[2]
+            self._values_flat = np.pad(self._values_flat, ((0,0),(0,0),(0,self.n-self._values_flat.shape[2])), 'constant')
+        else:
+            old_n = 0
+            self._values_flat = np.zeros(np.append(self._vecs[0].values.shape, len(other)))
+    
+        for i in range(old_n, self.n):
+            self._values_flat[:,:,i] = self._vecs[i].values
 
     def _matmul(self, other):
 
